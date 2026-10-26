@@ -169,7 +169,8 @@ const int DURASI_BUKA_MS = 1500;
 
 ## 👨‍💻 Kontributor
 
-- **Juremenn** - Inisiator, Pengembang & Pemilik Proyek ([@Juremenn](https://github.com/Juremenn))
+- **Darren12HubGit** - Inisiator, Pengembang ([@Darren12HubGit](https://github.com/Darren12HubGit))
+- **Juremenn** - Researcher, Pengembang ([@Juremenn](https://github.com/Juremenn))
 
 ---
 
