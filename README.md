@@ -1,5 +1,5 @@
 # 🏡 IoT Smart Home - Rumah Joglo
-### Sistem Pintu Otomatis Dual Servo Kupu-Tarung dengan Sensor Ultrasonik & OLED GUI
+### Sistem Pintu Otomatis Dual Servo, Sensor Api (Flame Detector), Kipas Pendingin 5V & Web Dashboard
 
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Project-orange?logo=platformio)](https://platformio.org/)
 [![ESP32](https://img.shields.io/badge/Board-ESP32%20DevKit%20V1-red?logo=espressif)](https://www.espressif.com/)
@@ -7,52 +7,67 @@
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-00599C?logo=c%2B%2B)](https://isocpp.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Proyek sistem **Smart Home miniatur Rumah Joglo** berbasis mikrokontroler **ESP32**. Sistem ini mengotomatiskan pembukaan dan penutupan dua daun pintu (model kupu-tarung) menggunakan sepasang motor servo yang bergerak simetris berlawanan arah. Deteksi dilakukan secara *touchless* menggunakan sensor ultrasonik HC-SR04, dan status pintu serta pembacaan sensor ditampilkan secara *real-time* melalui antarmuka grafis (GUI) modern pada layar OLED SSD1306 (I2C).
+Proyek sistem **Smart Home miniatur Rumah Joglo** berbasis mikrokontroler **ESP32**. Sistem ini mengintegrasikan:
+1. Pembukaan dan penutupan dua daun pintu otomatis model kupu-tarung menggunakan dual motor servo simetris.
+2. Deteksi jarak tangan *touchless* menggunakan sensor ultrasonik HC-SR04 (5V).
+3. **Deteksi Kebakaran / Api (Flame Detector)** di pin **D34** dengan otomasi evakuasi darurat (pintu otomatis terbuka penuh saat ada api).
+4. Pengendali sirkulasi udara kipas pendingin 5V (*cooling fan*).
+5. Tampilan antarmuka grafis pada **Layar OLED SSD1306 (I2C)**.
+6. **Website Dashboard Interaktif** yang responsif dan dapat diakses dari smartphone atau laptop melalui WiFi.
 
 ---
 
 ## ✨ Fitur Utama
 
-- ✋ **Deteksi Non-Kontak (*Touchless*):** Menggunakan sensor ultrasonik HC-SR04 untuk mendeteksi telapak tangan atau tamu pada jarak $\le$ 20 cm.
-- 🚪 **Dual Servo Kupu-Tarung Simetris:** Dua servo bergerak membuka dan menutup secara berlawanan arah (*mirrored motion*) layaknya daun pintu ganda Rumah Joglo:
+- 🔥 **Deteksi Api Darurat (Flame Detector DO di D34):**
+  - Pemantauan sensor api secara *real-time*.
+  - **Prosedur Evakuasi Otomatis:** Saat api terdeteksi, kedua servo pintu langsung terbuka penuh secara darurat, layar OLED menampilkan peringatan `! PERINGATAN API !`, dan website menampilkan status bahaya merah berkedip.
+  - Opsi balik logika sensor (Active-LOW / Active-HIGH) langsung dari web dashboard.
+- ✋ **Deteksi Non-Kontak (*Touchless*):** Sensor ultrasonik HC-SR04 mendeteksi tangan $\le$ 20 cm untuk membuka pintu selama 2 detik lalu menutup rapat kembali. Dilengkapi proteksi *anti-stuck*.
+- 🚪 **Dual Servo Kupu-Tarung Simetris:**
   - **Pintu 1 (Pin D13):** Tertutup `0°` $\rightarrow$ Terbuka `90°`
   - **Pintu 2 (Pin D12):** Tertutup `180°` $\rightarrow$ Terbuka `90°`
-- ⏱️ **Otomasi Buka-Tutup Cerdas:** Pintu terbuka selama **1,5 detik**, kemudian menutup kembali secara otomatis dan rapat.
-- 📟 **OLED GUI Modern & Interaktif (SSD1306):**
-  - *Splash screen* animasi saat pertama kali dinyalakan.
-  - Tampilan standby elegan lengkap dengan *badge* status `[ PINTU TERTUTUP ]`.
-  - **Proximity Gauge Bar:** Bar visual yang terisi semakin penuh saat tangan mendekati sensor.
-  - **Live Countdown Progress Bar:** Bar penghitung mundur menyusut halus secara *real-time* selama 1,5 detik sebelum pintu menutup kembali.
-  - Animasi visual arah pintu membuka dan menutup (`<[BUKA] [BUKA]>` & `[ ==>> <<== ]`).
-- ⚡ **I2C Fast Mode (400 kHz):** Menjamin pembaruan grafis layar sangat responsif dan bebas kedip (*zero flicker*).
-- 🧹 **Serial Monitor Bersih (*Event-Driven*):** Tidak ada *spamming* pembacaan jarak; terminal hanya mencetak peristiwa penting (*clean logging*).
+- 💨 **Kipas Pendingin 5V (*Cooling Fan*):** Kendali ON/OFF kipas di pin **D32** via Web Dashboard, dilengkapi fitur pengujian tegangan langsung.
+- 🌐 **Web Server Dashboard Modern:**
+  - Status live Sensor Api (D34), Sensor Ultrasonik (HC-SR04), Status Pintu, dan Kipas.
+  - Mode koneksi WiFi Rumah (`WIFI_SSID = "Nirvana"`) dengan *fallback* otomatis ke Access Point mandiri (`RumahJoglo-SmartHome`).
+- 📟 **Layar OLED SSD1306 (I2C):**
+  - Menampilkan status standby, jarak tangan, status api `Api: AMAN` / `Api: BAHAYA!`, dan IP Web Server.
 
 ---
 
 ## 🛠️ Komponen & Hardware
 
-| No | Komponen | Tipe / Spesifikasi | Keterangan |
-| :---: | :--- | :--- | :--- |
-| 1 | **Mikrokontroler** | ESP32 DOIT DevKit V1 (30 / 38 Pin) | Otak pemroses utama |
-| 2 | **Sensor Jarak** | HC-SR04 Ultrasonic Sensor | Deteksi jarak tangan / tamu |
-| 3 | **Aktuator Pintu** | 2x Micro Servo SG90 (atau MG90S) | Penggerak daun pintu kiri & kanan |
-| 4 | **Display / Layar** | OLED 0.96 inch SSD1306 I2C (128x64) | Tampilan GUI & informasi sistem |
-| 5 | **Sumber Daya** | 5V DC (Kabel USB / Adaptor External) | Disarankan suplai terpisah untuk servo |
-| 6 | **Kabel & Board** | Shield ESP32 / Breadboard & Jumper | Jalur koneksi antar modul |
+| No | Komponen | Tipe / Spesifikasi | Pin ESP32 | Keterangan |
+| :---: | :--- | :--- | :--- | :--- |
+| 1 | **Mikrokontroler** | ESP32 DOIT DevKit V1 | - | Otak pemroses utama & Web Server |
+| 2 | **Sensor Api** | Flame Detector Module (LM393) | **GPIO 34 (D34)** | Sinyal Digital Output (DO) deteksi api |
+| 3 | **Sensor Jarak** | HC-SR04 Ultrasonic Sensor | **Trig: D5, Echo: D18** | Deteksi jarak tangan / tamu (5V) |
+| 4 | **Aktuator Pintu** | 2x Micro Servo SG90 / MG90S | **S1: D13, S2: D12** | Penggerak pintu kupu-tarung |
+| 5 | **Kipas Pendingin** | Mini Cooling Fan 5V DC | **GPIO 32 (D32)** | Sirkulasi udara via relay / driver |
+| 6 | **Layar Teks / GUI** | OLED 0.96 inch SSD1306 (I2C) | **SDA: D21, SCL: D22** | Tampilan status teks & visual |
+| 7 | **Sumber Daya** | 5V DC (Kabel USB / Adaptor) | **VIN & GND** | Suplai daya 5V untuk seluruh modul |
 
 ---
 
 ## 🔌 Skema Pin & Wiring Diagram
 
-### 1. Sensor Ultrasonik HC-SR04
+### 1. Sensor Api (Flame Detector)
+| Pin Modul Sensor Api | Pin ESP32 | Keterangan |
+| :--- | :--- | :--- |
+| **VCC** | **3V3 atau 5V / VIN** | Daya modul |
+| **GND** | **GND** | Ground |
+| **DO (Digital Output / S)** | **GPIO 34 (D34)** | Sinyal deteksi api ke ESP32 |
+
+### 2. Sensor Ultrasonik HC-SR04
 | Pin HC-SR04 | Pin ESP32 | Keterangan |
 | :--- | :--- | :--- |
-| **VCC** | **5V / VIN** | Daya 5 Volt |
+| **VCC** | **5V / VIN** | Wajib daya 5 Volt |
 | **GND** | **GND** | Ground |
 | **TRIG** | **GPIO 5 (D5)** | Trigger pulsa ultrasonik |
-| **ECHO** | **GPIO 18 (D18)** | Echo pantulan gelombang |
+| **ECHO** | **GPIO 18 (D18)** | Echo pantulan pulsa |
 
-### 2. Dual Motor Servo (SG90)
+### 3. Dual Motor Servo (SG90)
 | Pin Servo | Warna Kabel | Pin ESP32 | Keterangan |
 | :--- | :--- | :--- | :--- |
 | **Servo 1 (Signal)** | Oranye / Kuning | **GPIO 13 (D13)** | Kontrol PWM Pintu 1 |
@@ -60,117 +75,32 @@ Proyek sistem **Smart Home miniatur Rumah Joglo** berbasis mikrokontroler **ESP3
 | **VCC (Keduanya)** | Merah | **5V / VIN** | Daya motor servo |
 | **GND (Keduanya)** | Cokelat / Hitam | **GND** | Ground bersama (*common ground*) |
 
-### 3. Layar OLED SSD1306 I2C (128x64)
-| Pin OLED | Warna Panduan | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- | :--- |
-| **GND** | Biru | **GND** | Ground |
-| **VCC** | Kuning | **3V3** | Tegangan logika 3.3V (aman) |
-| **SCL** | Kuning (kedua) | **GPIO 22 (D22)** | Jalur I2C Clock |
-| **SDA** | Ungu | **GPIO 21 (D21)** | Jalur I2C Data |
+### 4. Layar OLED SSD1306 I2C (128x64)
+| Pin OLED | Pin ESP32 | Keterangan |
+| :--- | :--- | :--- |
+| **GND** | **GND** | Ground |
+| **VCC** | **3V3** | Tegangan logika 3.3V |
+| **SCL** | **GPIO 22 (D22)** | Jalur I2C Clock |
+| **SDA** | **GPIO 21 (D21)** | Jalur I2C Data |
+
+### 5. Kipas Pendingin 5V
+| Pin Kipas / Driver | Pin ESP32 | Keterangan |
+| :--- | :--- | :--- |
+| **IN / Trigger Driver** | **GPIO 32 (D32)** | Sinyal kendali saklar kipas |
+| **VCC Kipas (+)** | **5V / VIN** | Daya 5 Volt |
+| **GND Kipas (-)** | **GND** (via relay) | Ground |
 
 ---
 
-## ⚙️ Diagram Alur Kerja Sistem
+## 📱 Panduan Akses Web Dashboard
 
-```mermaid
-flowchart TD
-    Start([ESP32 Menyala / Boot]) --> Init[Inisialisasi I2C, Servo, Sensor & OLED]
-    Init --> Splash[Tampilkan Splash Screen RUMAH JOGLO]
-    Splash --> DefaultPos[Set Posisi Servo Tertutup: S1=0°, S2=180°]
-    
-    DefaultPos --> ReadSensor[Baca Sensor Ultrasonik HC-SR04]
-    ReadSensor --> CheckDist{Jarak <= 20 cm?}
-    
-    CheckDist -- Tidak --> StandbyUI[OLED: Mode Standby & Live Proximity Bar]
-    StandbyUI --> ReadSensor
-    
-    CheckDist -- Ya --> TriggerEvent[Serial: Catat Event Tangan Terdeteksi]
-    TriggerEvent --> OpenDoors[Buka Kedua Servo: S1=90°, S2=90°]
-    OpenDoors --> CountdownUI[OLED: Hitung Mundur 1.5s & Progress Bar]
-    CountdownUI --> CloseDoors[Tutup Kedua Servo: S1=0°, S2=180°]
-    CloseDoors --> CloseUI[OLED: Animasi Pintu Menutup]
-    CloseUI --> Stabilize[Jeda Stabilisasi 800ms]
-    Stabilize --> ReadSensor
-```
-
----
-
-## 📁 Struktur Direktori
-
-```text
-Smarthome-Rumahjoglo/
-├── .pio/                  # Cache & build environment PlatformIO
-├── include/               # Header kustom tambahan (opsional)
-├── lib/                   # Pustaka lokal (opsional)
-├── src/
-│   └── main.cpp           # Kode sumber utama logika sistem, servo & GUI OLED
-├── test/                  # Unit testing
-├── platformio.ini         # Konfigurasi board, dependensi library & upload speed
-└── README.md              # Dokumentasi proyek
-```
-
----
-
-## 🚀 Panduan Memulai (Instalasi & Penggunaan)
-
-### Prasyarat:
-1. Pasang [Visual Studio Code](https://code.visualstudio.com/).
-2. Pasang ekstensi **PlatformIO IDE** dari VS Code Marketplace.
-3. Hubungkan board ESP32 ke komputer melalui kabel USB Data.
-
-### Langkah-langkah:
-1. **Clone repositori ini:**
-   ```bash
-   git clone https://github.com/Juremenn/IoT-Smarthome.git
-   ```
-2. Buka folder proyek di **VS Code / PlatformIO**.
-3. Dependensi library akan terunduh otomatis berdasarkan file `platformio.ini`:
-   - `madhephaestus/ESP32Servo`
-   - `adafruit/Adafruit SSD1306`
-   - `adafruit/Adafruit GFX Library`
-4. **Kompilasi (Build):**
-   Tekan tombol centang (`✓`) di status bar bawah VS Code atau jalankan terminal:
-   ```bash
-   pio run
-   ```
-5. **Unggah Program (Upload):**
-   Tekan tombol panah kanan (`→`) di status bar bawah VS Code:
+1. **Upload firmware ke ESP32:**
    ```bash
    pio run --target upload
    ```
-6. **Buka Serial Monitor:**
-   Tekan ikon colokan (`🔌`) pada baudrate **115200**:
-   ```bash
-   pio device monitor -b 115200
-   ```
-
----
-
-## 🔧 Kustomisasi Parameter
-
-Kamu dapat menyesuaikan parameter fisik di baris awal file [`src/main.cpp`](src/main.cpp):
-
-```cpp
-// Batas jarak deteksi tangan (satuan cm)
-const int MAX_DISTANCE = 20;
-
-// Sudut pergerakan servo (atur jika daun pintu perlu sudut berbeda)
-const int SERVO1_CLOSE = 0;    // Pintu 1 tertutup
-const int SERVO1_OPEN  = 90;   // Pintu 1 terbuka
-
-const int SERVO2_CLOSE = 180;  // Pintu 2 tertutup (berlawanan arah)
-const int SERVO2_OPEN  = 90;   // Pintu 2 terbuka
-
-// Durasi pintu terbuka (dalam milidetik, 1500 ms = 1.5 detik)
-const int DURASI_BUKA_MS = 1500;
-```
-
----
-
-## 👨‍💻 Kontributor
-
-- **Darren12HubGit** - Inisiator, Pengembang ([@Darren12HubGit](https://github.com/Darren12HubGit))
-- **Juremenn** - Researcher, Pengembang ([@Juremenn](https://github.com/Juremenn))
+2. Lihat alamat IP yang tertera di layar OLED atau Serial Monitor (contoh: `http://192.168.1.xxx` atau `http://192.168.4.1`).
+3. Buka alamat tersebut di browser HP atau laptop.
+4. Dashboard Smart Home Rumah Joglo siap digunakan secara *real-time*.
 
 ---
 

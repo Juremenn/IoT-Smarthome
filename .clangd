@@ -1,0 +1,13 @@
+CompileFlags:
+  CompilationDatabase: .
+  Add:
+    - "-w"
+    - "-DARDUINO=10800"
+    - "-DESP32"
+
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+    - unknown_typename
+    - undeclared_var_use
+

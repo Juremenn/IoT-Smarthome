@@ -1,0 +1,10 @@
+{
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/compile_commands.json",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}",
+        "--query-driver=C:/Users/Nel/.platformio/packages/toolchain-xtensa-esp-elf/bin/*,C:\\Users\\Nel\\.platformio\\packages\\toolchain-xtensa-esp-elf\\bin\\*",
+        "--background-index",
+        "--header-insertion=never",
+        "--clang-tidy=false"
+    ]
+}
