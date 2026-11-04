@@ -520,21 +520,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0b0f17;
-      --surface: #131926;
-      --surface-elevated: #1c2436;
-      --surface-subtle: #0f1420;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-focus: rgba(56, 189, 248, 0.4);
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
-      --text-dim: #64748b;
-      --emerald: #10b981;
-      --rose: #f43f5e;
+      --bg: #f2f5f9;
+      --surface: #ffffff;
+      --surface-subtle: #f8fafc;
+      --surface-elevated: #f1f5f9;
+      --border: #e2e8f0;
+      --border-focus: #00b06f;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --emerald: #00b06f;
+      --rose: #ef4444;
       --amber: #f59e0b;
-      --cyan: #38bdf8;
-      --radius-card: 8px;
-      --radius-btn: 6px;
+      --cyan: #0284c7;
+      --radius-card: 12px;
+      --radius-btn: 8px;
     }
 
     * {
@@ -575,20 +575,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       gap: 12px;
     }
     .brand-logo {
-      width: 38px;
-      height: 38px;
-      border-radius: 6px;
-      background: var(--surface-elevated);
-      border: 1px solid var(--border);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #e6f7ef;
+      border: 1px solid #a3e6cb;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--cyan);
+      color: #00b06f;
+      box-shadow: 0 1px 3px rgba(0, 176, 111, 0.1);
     }
     .brand-title {
       font-size: 18px;
       font-weight: 700;
-      color: #fff;
+      color: #0f172a;
       line-height: 1.2;
     }
     .brand-subtitle {
@@ -597,15 +598,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       font-weight: 400;
     }
 
-    /* Header Metadata (No round dots, no button pills) */
+    /* Header Status Pill (Blynk Style Clean Card) */
     .header-meta {
       display: flex;
       align-items: center;
       gap: 10px;
-      background: var(--surface);
+      background: #ffffff;
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 8px;
       padding: 6px 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
     .meta-item {
       display: flex;
@@ -615,7 +617,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
     .meta-label {
       color: var(--text-dim);
-      font-weight: 500;
+      font-weight: 600;
       font-size: 10px;
       letter-spacing: 0.5px;
     }
@@ -624,10 +626,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       color: var(--text-muted);
     }
     .meta-value.val-online {
-      color: var(--emerald);
+      color: #008753;
     }
     .meta-value.val-offline {
-      color: var(--rose);
+      color: #dc2626;
     }
     .meta-divider {
       width: 1px;
@@ -635,7 +637,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       background: var(--border);
     }
 
-    /* Status Badges: Flat rectangular info tag, NOT a round button */
+    /* Status Badges: Flat Modern Tag */
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -648,39 +650,39 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       line-height: 1.2;
     }
     .status-badge.safe {
-      background: rgba(16, 185, 129, 0.1);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.25);
+      background: #e6f7ef;
+      color: #008753;
+      border: 1px solid #a3e6cb;
     }
     .status-badge.danger {
-      background: rgba(244, 63, 94, 0.1);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.25);
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
     }
     .status-badge.neutral {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-muted);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
     }
     .status-badge.accent {
-      background: rgba(56, 189, 248, 0.1);
-      color: var(--cyan);
-      border: 1px solid rgba(56, 189, 248, 0.25);
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
     }
 
     /* Cards */
     .card {
-      background: var(--surface);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: var(--radius-card);
-      padding: 18px 20px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
     }
     .card-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
     .card-header-left {
       display: flex;
@@ -688,20 +690,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       gap: 10px;
     }
     .card-icon-box {
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      background: var(--surface-subtle);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: #f8fafc;
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--text-muted);
+      color: #475569;
     }
     .card-heading {
       font-size: 15px;
       font-weight: 600;
-      color: #fff;
+      color: #0f172a;
       line-height: 1.25;
     }
     .card-subtext {
@@ -712,57 +714,65 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     /* Architectural Double-Door Stage */
     .door-stage {
-      background: var(--surface-subtle);
+      background: #f8fafc;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 14px 18px;
+      border-radius: 8px;
+      padding: 16px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 14px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .door-stage.is-open {
+      border-color: #00b06f;
+      background: #f0fdf4;
+      box-shadow: 0 0 10px rgba(0, 176, 111, 0.12);
     }
     .door-view {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
     .door-frame {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       perspective: 350px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--border);
-      border-radius: 4px;
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
       position: relative;
     }
     .door-wing {
       width: 50%;
       height: 100%;
-      background: #242c3d;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(135deg, #a16207, #78350f);
+      border: 1px solid rgba(0, 0, 0, 0.2);
       position: relative;
-      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     .door-wing.left {
       transform-origin: left center;
-      border-top-left-radius: 2px;
-      border-bottom-left-radius: 2px;
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
     }
     .door-wing.right {
       transform-origin: right center;
-      border-top-right-radius: 2px;
-      border-bottom-right-radius: 2px;
+      border-top-right-radius: 3px;
+      border-bottom-right-radius: 3px;
     }
     .door-wing::after {
       content: "";
       position: absolute;
       top: 50%;
-      width: 2px;
-      height: 6px;
-      background: #f59e0b;
+      width: 3px;
+      height: 7px;
+      background: #fbbf24;
+      border-radius: 1px;
+      box-shadow: 0 0 2px rgba(0,0,0,0.4);
       transform: translateY(-50%);
     }
     .door-wing.left::after { right: 2px; }
@@ -775,109 +785,116 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       transform: rotateY(80deg);
     }
     .door-stage.is-open .door-frame {
-      border-color: rgba(16, 185, 129, 0.6);
+      border-color: #00b06f;
     }
 
     .door-status-title {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 700;
-      color: #fff;
+      color: #0f172a;
       line-height: 1.2;
     }
     .door-status-note {
       font-size: 11px;
       color: var(--text-muted);
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     /* Buttons */
     .btn-row {
       display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
     .btn {
       flex: 1;
-      padding: 11px 14px;
+      padding: 12px 14px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       border-radius: var(--radius-btn);
       border: none;
       cursor: pointer;
-      transition: background 0.15s ease, opacity 0.15s ease;
+      transition: all 0.15s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
     }
     .btn:active {
-      opacity: 0.85;
+      transform: scale(0.98);
     }
     .btn-primary-white {
-      background: #f8fafc;
-      color: #0b0f17;
-      font-weight: 600;
+      background: #00b06f;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 176, 111, 0.25);
     }
     .btn-primary-white:hover {
-      background: #ffffff;
+      background: #009960;
     }
     .btn-secondary-glass {
-      background: var(--surface-elevated);
-      color: #e2e8f0;
-      border: 1px solid var(--border);
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     }
     .btn-secondary-glass:hover {
-      background: #232c42;
-      border-color: rgba(255, 255, 255, 0.15);
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
-    /* Mode Selector Tabs (No 4-cell table buttons) */
+    /* Blynk Clean Mode Navigation (No scrollbars, perfect width) */
     .control-label {
       font-size: 11px;
       font-weight: 600;
-      color: var(--text-dim);
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.6px;
-      margin: 16px 0 6px;
+      margin: 18px 0 8px;
     }
     .mode-nav {
       display: flex;
-      border-bottom: 1px solid var(--border);
-      gap: 4px;
-      overflow-x: auto;
+      border-bottom: 2px solid #e2e8f0;
+      gap: 0;
+      width: 100%;
     }
     .mode-tab {
+      flex: 1;
       background: transparent;
       border: none;
       border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 500;
-      padding: 8px 12px;
+      padding: 10px 4px;
       cursor: pointer;
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
       white-space: nowrap;
-      transition: color 0.15s ease, border-color 0.15s ease;
-      margin-bottom: -1px;
+      transition: all 0.15s ease;
     }
     .mode-tab:hover {
       color: var(--text-main);
     }
     .mode-tab.active {
-      color: var(--cyan);
-      border-bottom-color: var(--cyan);
+      color: #00b06f;
+      border-bottom: 2px solid #00b06f;
       font-weight: 600;
+      background: #f0fdf4;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
     }
 
-    /* Info Context Banner */
+    /* Context Banner */
     .context-box {
-      margin-top: 10px;
-      background: var(--surface-subtle);
+      margin-top: 12px;
+      background: #f8fafc;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 14px;
+      border-radius: 8px;
+      padding: 12px 14px;
       font-size: 11px;
       line-height: 1.5;
     }
@@ -889,7 +906,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
     .context-title {
       font-weight: 600;
-      color: #fff;
+      color: #0f172a;
     }
     .context-desc {
       color: var(--text-muted);
@@ -907,17 +924,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    /* Sensor Details */
+    /* Metric Display */
     .metric-row {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .metric-big {
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 700;
-      color: #fff;
+      color: #0f172a;
       font-variant-numeric: tabular-nums;
       line-height: 1;
     }
@@ -928,12 +945,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       margin-left: 2px;
     }
 
-    /* Gauge Bar (Clean Flat Bar, Not a Pill Capsule) */
+    /* Gauge Bar */
     .gauge-track {
       width: 100%;
-      height: 4px;
-      background: var(--surface-elevated);
-      border-radius: 2px;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
       position: relative;
       overflow: hidden;
       margin-bottom: 6px;
@@ -944,14 +961,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       top: 0;
       bottom: 0;
       width: 2px;
-      background: var(--amber);
+      background: #f59e0b;
       z-index: 2;
     }
     .gauge-bar-fill {
       height: 100%;
       width: 0%;
-      background: var(--emerald);
-      border-radius: 2px;
+      background: #00b06f;
+      border-radius: 3px;
       transition: width 0.2s ease, background 0.2s ease;
     }
     .gauge-text-row {
@@ -961,28 +978,29 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       color: var(--text-dim);
     }
 
-    /* Subtle Action Buttons */
+    /* Clean Light Action Buttons */
     .subtle-action-btn {
       width: 100%;
-      background: var(--surface-subtle);
-      border: 1px solid var(--border);
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
       border-radius: 6px;
-      color: var(--text-muted);
+      color: #475569;
       font-size: 11px;
-      font-weight: 500;
-      padding: 8px 12px;
+      font-weight: 600;
+      padding: 9px 12px;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 12px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
       transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
     .subtle-action-btn:hover {
-      background: var(--surface-elevated);
-      color: var(--text-main);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
     }
 
     .footer-note {
@@ -1000,7 +1018,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <header class="app-header">
       <div class="brand-wrap">
         <div class="brand-logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 10.5L12 3l9 7.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
@@ -1083,7 +1101,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </button>
       </div>
 
-      <!-- Mode Selector Tabs (No 4-cell table) -->
+      <!-- Mode Selector Tabs (Blynk Style Clean Segmented Nav) -->
       <div class="control-label">Pemicu Otomatis Pintu</div>
       <nav class="mode-nav" role="tablist">
         <button class="mode-tab" id="tabMode1" onclick="setTriggerMode(1)">
@@ -1128,7 +1146,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <div class="card" id="flameCard">
         <div class="card-top">
           <div class="card-header-left">
-            <div class="card-icon-box">
+            <div class="card-icon-box" style="color:#ef4444;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3z"/>
               </svg>
@@ -1144,7 +1162,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div class="context-box" style="margin-top:0;">
           <div class="context-row">
             <span>Status:</span>
-            <strong id="flameStatusText" style="color:#34d399;">Aman (Normal)</strong>
+            <strong id="flameStatusText" style="color:#008753;">Aman (Normal)</strong>
           </div>
           <div class="context-row" style="margin-top:6px; color:var(--text-dim);">
             <span>Nilai D34: <span id="flameRawVal" style="color:var(--text-muted);">0</span></span>
@@ -1164,7 +1182,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <div class="card" id="usCard">
         <div class="card-top">
           <div class="card-header-left">
-            <div class="card-icon-box">
+            <div class="card-icon-box" style="color:#0284c7;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.48"/><path d="M10.59 13.41a2 2 0 0 1 0-2.82"/><line x1="12" y1="12" x2="12.01" y2="12"/>
               </svg>
@@ -1184,7 +1202,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
           <div style="text-align:right;">
             <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Batas Pemicu</div>
-            <div style="font-size:12px; font-weight:600; color:var(--amber);">≤ 20 cm</div>
+            <div style="font-size:12px; font-weight:600; color:#d97706;">≤ 20 cm</div>
           </div>
         </div>
 
@@ -1194,7 +1212,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
         <div class="gauge-text-row">
           <span>0 cm</span>
-          <span style="color:var(--amber);">20 cm (Buka)</span>
+          <span style="color:#d97706;">20 cm (Buka)</span>
           <span>40+ cm</span>
         </div>
 
@@ -1208,7 +1226,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
 
     <div class="footer-note">
-      Rumah Joglo IoT System &bull; ESP32 DevKit
+      Rumah Joglo IoT System &bull; Blynk Style Light Edition
     </div>
   </div>
 
@@ -1310,13 +1328,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             flameBadge.innerText = 'Bahaya Api!';
             flameBadge.className = 'status-badge danger';
             flameText.innerText = 'Bahaya: Terdeteksi Api!';
-            flameText.style.color = '#fb7185';
-            flameCard.style.borderColor = 'rgba(244, 63, 94, 0.4)';
+            flameText.style.color = '#dc2626';
+            flameCard.style.borderColor = '#fca5a5';
           } else {
             flameBadge.innerText = 'Aman';
             flameBadge.className = 'status-badge safe';
             flameText.innerText = 'Aman (Normal)';
-            flameText.style.color = '#34d399';
+            flameText.style.color = '#008753';
             flameCard.style.borderColor = 'var(--border)';
           }
 
@@ -1342,17 +1360,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             usBadge.className = 'status-badge safe';
             let pct = Math.min(100, Math.max(0, Math.round(((40 - dist) / 40) * 100)));
             distFill.style.width = pct + '%';
-            distFill.style.background = 'var(--emerald)';
+            distFill.style.background = '#00b06f';
           } else {
             usBadge.innerText = 'Standby';
             usBadge.className = 'status-badge neutral';
             if (dist > maxD && dist <= 40) {
               let pct = Math.min(100, Math.max(0, Math.round(((40 - dist) / 40) * 100)));
               distFill.style.width = pct + '%';
-              distFill.style.background = 'var(--amber)';
+              distFill.style.background = '#f59e0b';
             } else {
               distFill.style.width = '0%';
-              distFill.style.background = 'var(--emerald)';
+              distFill.style.background = '#00b06f';
             }
           }
         })
