@@ -1,5 +1,5 @@
 # 🏡 IoT Smart Home - Rumah Joglo
-### Sistem Pintu Otomatis Dual Servo, Sensor Api (Flame Detector), Kipas Pendingin 5V & Web Dashboard
+### Pintu Otomatis Servo (Gerak Halus), Sensor Api, Sensor Jarak, Sensor Sentuh, Kipas & Dashboard Web
 
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Project-orange?logo=platformio)](https://platformio.org/)
 [![ESP32](https://img.shields.io/badge/Board-ESP32%20DevKit%20V1-red?logo=espressif)](https://www.espressif.com/)
@@ -7,100 +7,88 @@
 [![Language](https://img.shields.io/badge/Language-C%2B%2B-00599C?logo=c%2B%2B)](https://isocpp.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Proyek sistem **Smart Home miniatur Rumah Joglo** berbasis mikrokontroler **ESP32**. Sistem ini mengintegrasikan:
-1. Pembukaan dan penutupan dua daun pintu otomatis model kupu-tarung menggunakan dual motor servo simetris.
-2. Deteksi jarak tangan *touchless* menggunakan sensor ultrasonik HC-SR04 (5V).
-3. **Deteksi Kebakaran / Api (Flame Detector)** di pin **D34** dengan otomasi evakuasi darurat (pintu otomatis terbuka penuh saat ada api).
-4. Pengendali sirkulasi udara kipas pendingin 5V (*cooling fan*).
-5. Tampilan antarmuka grafis pada **Layar OLED SSD1306 (I2C)**.
-6. **Website Dashboard Interaktif** yang responsif dan dapat diakses dari smartphone atau laptop melalui WiFi.
+Smart home miniatur Rumah Joglo berbasis **ESP32**. Dashboard web disajikan langsung dari ESP32 dan bisa dibuka tanpa internet.
 
 ---
 
-## ✨ Fitur Utama
+## ✨ Fitur
 
-- 🔥 **Deteksi Api Darurat (Flame Detector DO di D34):**
-  - Pemantauan sensor api secara *real-time*.
-  - **Prosedur Evakuasi Otomatis:** Saat api terdeteksi, kedua servo pintu langsung terbuka penuh secara darurat, layar OLED menampilkan peringatan `! PERINGATAN API !`, dan website menampilkan status bahaya merah berkedip.
-  - Opsi balik logika sensor (Active-LOW / Active-HIGH) langsung dari web dashboard.
-- ✋ **Deteksi Non-Kontak (*Touchless*):** Sensor ultrasonik HC-SR04 mendeteksi tangan $\le$ 20 cm untuk membuka pintu selama 2 detik lalu menutup rapat kembali. Dilengkapi proteksi *anti-stuck*.
-- 🚪 **Dual Servo Kupu-Tarung Simetris:**
-  - **Pintu 1 (Pin D13):** Tertutup `0°` $\rightarrow$ Terbuka `90°`
-  - **Pintu 2 (Pin D12):** Tertutup `180°` $\rightarrow$ Terbuka `90°`
-- 💨 **Kipas Pendingin 5V (*Cooling Fan*):** Kendali ON/OFF kipas di pin **D32** via Web Dashboard, dilengkapi fitur pengujian tegangan langsung.
-- 🌐 **Web Server Dashboard Modern:**
-  - Status live Sensor Api (D34), Sensor Ultrasonik (HC-SR04), Status Pintu, dan Kipas.
-  - Mode koneksi WiFi Rumah (`WIFI_SSID = "Nirvana"`) dengan *fallback* otomatis ke Access Point mandiri (`RumahJoglo-SmartHome`).
-- 📟 **Layar OLED SSD1306 (I2C):**
-  - Menampilkan status standby, jarak tangan, status api `Api: AMAN` / `Api: BAHAYA!`, dan IP Web Server.
+- **Pintu servo (D13), gerak halus:** membuka 0° ke 180° dalam 3,0 s dan menutup dalam 3,9 s dengan kurva ease-in-out (mulai pelan, cepat di tengah, melambat sampai berhenti). Gerakan tidak memblokir, jadi web server tetap responsif.
+- **Tiga perintah pintu:** Buka Pintu (2 Detik), Buka Terus, Tutup Rapat.
+- **Pemicu otomatis (pilih satu):**
+  - **Sentuh (D4):** sentuh ujung kabel jumper di D4.
+  - **Sensor Api (D34):** pintu dibuka dan ditahan terbuka selama api terdeteksi (evakuasi). Tutup Rapat dikunci sampai api padam.
+  - **Ultrasonik (HC-SR04):** objek ≤ 20 cm membuka pintu. Selama objek masih ada, pintu tetap terbuka; kalau objek muncul saat pintu menutup, pintu berbalik membuka.
+  - **Manual:** hanya lewat tombol web.
+- **Detektor api:** status Aman/Bahaya, nilai pin, logika Active-HIGH/LOW yang bisa dibalik.
+- **Kipas (D32):** nyala/mati dan balik logika relay dari web.
+- **OLED SSD1306 (opsional):** dideteksi otomatis lewat I2C (hot-plug).
+- **WiFi:** mencoba WiFi rumah, kalau gagal menjadi hotspot `RumahJoglo-SmartHome` di `http://192.168.4.1`.
 
 ---
 
-## 🛠️ Komponen & Hardware
+## 🛠️ Komponen & Wiring
 
-| No | Komponen | Tipe / Spesifikasi | Pin ESP32 | Keterangan |
-| :---: | :--- | :--- | :--- | :--- |
-| 1 | **Mikrokontroler** | ESP32 DOIT DevKit V1 | - | Otak pemroses utama & Web Server |
-| 2 | **Sensor Api** | Flame Detector Module (LM393) | **GPIO 34 (D34)** | Sinyal Digital Output (DO) deteksi api |
-| 3 | **Sensor Jarak** | HC-SR04 Ultrasonic Sensor | **Trig: D5, Echo: D18** | Deteksi jarak tangan / tamu (5V) |
-| 4 | **Aktuator Pintu** | 2x Micro Servo SG90 / MG90S | **S1: D13, S2: D12** | Penggerak pintu kupu-tarung |
-| 5 | **Kipas Pendingin** | Mini Cooling Fan 5V DC | **GPIO 32 (D32)** | Sirkulasi udara via relay / driver |
-| 6 | **Layar Teks / GUI** | OLED 0.96 inch SSD1306 (I2C) | **SDA: D21, SCL: D22** | Tampilan status teks & visual |
-| 7 | **Sumber Daya** | 5V DC (Kabel USB / Adaptor) | **VIN & GND** | Suplai daya 5V untuk seluruh modul |
+| Komponen | Pin modul | Pin ESP32 |
+| :--- | :--- | :--- |
+| Servo SG90 / MG90S | Sinyal (oranye) | **D13** |
+| | VCC / GND | 5V (VIN) / GND |
+| Flame sensor 5-way (LM393) | DO | **D34** |
+| | VCC / GND | 3V3 / GND |
+| Sensor sentuh | Ujung kabel jumper | **D4** (Touch0) |
+| HC-SR04 | Trig / Echo | **D4 / D5** (bisa ditukar atau dipindai dari web) |
+| | VCC / GND | 5V / GND |
+| Kipas 5V via relay/driver | IN | **D32** |
+| OLED SSD1306 128x64 (opsional) | SDA / SCL | D21 / D22 |
+
+> Catatan: sensor sentuh dan Trig HC-SR04 sama-sama memakai D4. Firmware hanya membaca sentuh di mode Sentuh dan ultrasonik di mode Ultrasonik, tapi kalau keduanya dipasang bersamaan sinyalnya bisa saling ganggu. Pindahkan HC-SR04 dengan tombol **Pindai Pin Otomatis** di dashboard.
+
+> Flame sensor diberi daya **3V3**, karena D34 hanya tahan 3,3 V.
 
 ---
 
-## 🔌 Skema Pin & Wiring Diagram
+## 📁 Struktur Kode
 
-### 1. Sensor Api (Flame Detector)
-| Pin Modul Sensor Api | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- |
-| **VCC** | **3V3 atau 5V / VIN** | Daya modul |
-| **GND** | **GND** | Ground |
-| **DO (Digital Output / S)** | **GPIO 34 (D34)** | Sinyal deteksi api ke ESP32 |
+```
+include/
+  config.h            pin, sudut servo, waktu gerak, ambang sensor
+  secrets.example.h   contoh kredensial WiFi (masuk git)
+  secrets.h           kredensial WiFi asli (TIDAK masuk git)
+src/
+  main.cpp            setup() dan loop() saja
+  door.*              servo pintu, gerak halus, siklus buka-tahan-tutup
+  sensors.*           sensor api, sentuh, ultrasonik
+  automation.*        mode pemicu otomatis
+  fan.*               kipas / relay
+  oled.*              layar SSD1306
+  network.*           WiFi station / access point
+  web_server.*        route HTTP
+  web/index_html.h    HTML dashboard   (PROGMEM, route /)
+  web/style_css.h     CSS dashboard    (PROGMEM, route /style.css)
+  web/app_js.h        JS dashboard     (PROGMEM, route /app.js)
+```
 
-### 2. Sensor Ultrasonik HC-SR04
-| Pin HC-SR04 | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- |
-| **VCC** | **5V / VIN** | Wajib daya 5 Volt |
-| **GND** | **GND** | Ground |
-| **TRIG** | **GPIO 5 (D5)** | Trigger pulsa ultrasonik |
-| **ECHO** | **GPIO 18 (D18)** | Echo pantulan pulsa |
+### API HTTP (semua GET, respons JSON status)
 
-### 3. Dual Motor Servo (SG90)
-| Pin Servo | Warna Kabel | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- | :--- |
-| **Servo 1 (Signal)** | Oranye / Kuning | **GPIO 13 (D13)** | Kontrol PWM Pintu 1 |
-| **Servo 2 (Signal)** | Oranye / Kuning | **GPIO 12 (D12)** | Kontrol PWM Pintu 2 |
-| **VCC (Keduanya)** | Merah | **5V / VIN** | Daya motor servo |
-| **GND (Keduanya)** | Cokelat / Hitam | **GND** | Ground bersama (*common ground*) |
-
-### 4. Layar OLED SSD1306 I2C (128x64)
-| Pin OLED | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- |
-| **GND** | **GND** | Ground |
-| **VCC** | **3V3** | Tegangan logika 3.3V |
-| **SCL** | **GPIO 22 (D22)** | Jalur I2C Clock |
-| **SDA** | **GPIO 21 (D21)** | Jalur I2C Data |
-
-### 5. Kipas Pendingin 5V
-| Pin Kipas / Driver | Pin ESP32 | Keterangan |
-| :--- | :--- | :--- |
-| **IN / Trigger Driver** | **GPIO 32 (D32)** | Sinyal kendali saklar kipas |
-| **VCC Kipas (+)** | **5V / VIN** | Daya 5 Volt |
-| **GND Kipas (-)** | **GND** (via relay) | Ground |
+| Route | Parameter |
+| :--- | :--- |
+| `/api/status` | |
+| `/api/door` | `action=auto` / `open` / `close`, atau `action=set_mode&mode=0..3` |
+| `/api/flame` | `toggle_logic=1` |
+| `/api/fan` | `set=0/1`, `toggle`, `pin=N`, `toggle_logic` |
+| `/api/ultrasonic` | `swap=1`, atau `scan=1` (balas `{result, trigPin, echoPin}`) |
 
 ---
 
-## 📱 Panduan Akses Web Dashboard
+## 📱 Build & Upload
 
-1. **Upload firmware ke ESP32:**
+1. Salin `include/secrets.example.h` menjadi `include/secrets.h`, lalu isi SSID dan password WiFi.
+2. Upload:
    ```bash
    pio run --target upload
+   pio device monitor
    ```
-2. Lihat alamat IP yang tertera di layar OLED atau Serial Monitor (contoh: `http://192.168.1.xxx` atau `http://192.168.4.1`).
-3. Buka alamat tersebut di browser HP atau laptop.
-4. Dashboard Smart Home Rumah Joglo siap digunakan secara *real-time*.
+3. Buka IP yang tampil di Serial Monitor atau OLED dari browser HP/laptop.
 
 ---
 
