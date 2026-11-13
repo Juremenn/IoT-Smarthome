@@ -25,3 +25,11 @@ int ultrasonicTrigPin();
 int ultrasonicEchoPin();
 void ultrasonicSwapPins();
 String ultrasonicScanPins(int fanPin);
+
+// ---- Sensor Suhu & Kelembaban DHT11 (D27) ----
+void dhtBegin();
+void dhtUpdate(unsigned long now);
+float dhtTemperature();
+float dhtHumidity();
+bool dhtIsValid();
+const char *dhtStatusMessage();

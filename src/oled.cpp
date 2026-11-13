@@ -153,7 +153,13 @@ void drawStandby() {
 
   display.setCursor(4, 38);
   display.print("Api   : ");
-  display.print(flameDetected() ? "! BAHAYA !" : "AMAN");
+  if (flameDetected()) {
+    display.print("! BAHAYA !");
+  } else if (dhtIsValid()) {
+    display.printf("Aman | %.0fC", dhtTemperature());
+  } else {
+    display.print("AMAN");
+  }
   footerIp();
   display.display();
 }

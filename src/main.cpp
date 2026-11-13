@@ -30,6 +30,7 @@ void setup() {
   doorBegin();
   ultrasonicBegin();
   flameBegin();
+  dhtBegin();
   fanBegin();
 
   oledBegin();
@@ -44,6 +45,7 @@ void setup() {
   Serial.println("  SMART HOME RUMAH JOGLO - IOT SYSTEM");
   Serial.printf("  Servo Pintu: GPIO D%d\n", cfg::PIN_SERVO);
   Serial.printf("  Sensor Api 5-Way: GPIO D%d\n", cfg::PIN_FLAME);
+  Serial.printf("  Sensor Suhu (DHT11): GPIO D%d\n", cfg::PIN_DHT);
   Serial.printf("  Sensor Ultrasonik: Trig=D%d, Echo=D%d\n", ultrasonicTrigPin(),
                 ultrasonicEchoPin());
   Serial.printf("  Kipas/Relay di Pin: GPIO D%d\n", fanPin());
@@ -56,15 +58,22 @@ void loop() {
 
   networkMaintain(now);
   webHandle();
+  dhtUpdate(now);
   automationUpdate(now);
   doorUpdate(now);
   oledUpdate(now);
 
   if (now - lastSerialLog >= 3000) {
     lastSerialLog = now;
-    Serial.printf("[STATUS] Pintu: %s | Pemicu: %d | Touch(D4): %d | Flame: %s (Raw: %d) | OLED: %s\n",
-                  doorStatusText(), triggerMode(), touchRawValue(),
-                  flameDetected() ? "API!" : "Aman", flameRaw(), oledIsActive() ? "Aktif" : "Offline");
+    if (dhtIsValid()) {
+      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Touch(D4): %d | Flame: %s (Raw: %d) | OLED: %s\n",
+                    doorStatusText(), dhtTemperature(), dhtHumidity(), triggerMode(), touchRawValue(),
+                    flameDetected() ? "API!" : "Aman", flameRaw(), oledIsActive() ? "Aktif" : "Offline");
+    } else {
+      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Touch(D4): %d | Flame: %s (Raw: %d) | OLED: %s\n",
+                    doorStatusText(), dhtStatusMessage(), triggerMode(), touchRawValue(),
+                    flameDetected() ? "API!" : "Aman", flameRaw(), oledIsActive() ? "Aktif" : "Offline");
+    }
   }
 
   delay(2);

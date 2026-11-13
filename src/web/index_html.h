@@ -69,6 +69,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
           <span class="t-sub" id="distSub"></span>
         </div>
       </div>
+
+      <div class="tile" id="tTemp">
+        <div class="hit" role="group" aria-labelledby="tempTitle tempNum tempUnit tempSub">
+          <span class="t-title" id="tempTitle">Suhu Ruang</span>
+          <span class="num"><span id="tempNum">--</span><small id="tempUnit">°C</small></span>
+          <span class="gauge" aria-hidden="true"><span class="fill" id="tempFill"></span></span>
+          <span class="t-sub" id="tempSub">Memuat</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -93,6 +102,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
       <div><dt>Sentuh D4</dt><dd id="iTouch">--</dd></div>
       <div><dt>Echo terakhir</dt><dd id="iEcho">--</dd></div>
       <div><dt>Batas jarak</dt><dd id="iMax">--</dd></div>
+      <div><dt>Sensor suhu (D27)</dt><dd id="iTemp">--</dd></div>
+      <div><dt>Kelembaban udara</dt><dd id="iHum">--</dd></div>
     </dl>
   </section>
 </main>

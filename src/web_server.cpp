@@ -49,6 +49,10 @@ void handleStatus() {
   json += "\"echoPin\":" + String(ultrasonicEchoPin()) + ",";
   json += "\"distance\":" + String(distance) + ",";
   json += "\"maxDistance\":" + String(cfg::MAX_DISTANCE_CM) + ",";
+  json += "\"temp\":" + String(dhtTemperature(), 1) + ",";
+  json += "\"humidity\":" + String(dhtHumidity(), 1) + ",";
+  json += "\"tempValid\":" + String(boolStr(dhtIsValid())) + ",";
+  json += "\"dhtStatus\":\"" + String(dhtStatusMessage()) + "\",";
   json += "\"handDetected\":" + String(boolStr(isHand || isTouched)) + ",";
   json += "\"rawEcho\":" + String(ultrasonicLastEcho()) + ",";
   json += "\"ip\":\"" + networkIp() + "\",";

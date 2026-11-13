@@ -172,13 +172,13 @@ String ultrasonicScanPins(int fanPin) {
   Serial.println("\n[ULTRASONIK] Memindai pin secara otomatis...");
   static const int pairs[][2] = {{4, 5},   {5, 4},   {5, 18},  {18, 5},  {18, 19}, {19, 18},
                                  {4, 18},  {18, 4},  {5, 19},  {19, 5},  {23, 19}, {19, 23},
-                                 {16, 17}, {17, 16}, {25, 26}, {26, 25}, {27, 14}, {14, 27}};
+                                 {16, 17}, {17, 16}, {25, 26}, {26, 25}};
 
   for (const auto &p : pairs) {
     int t = p[0];
     int e = p[1];
-    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == fanPin) continue;
-    if (e == 13 || e == 12 || e == 21 || e == 22 || e == fanPin) continue;
+    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == fanPin || t == cfg::PIN_DHT) continue;
+    if (e == 13 || e == 12 || e == 21 || e == 22 || e == fanPin || e == cfg::PIN_DHT) continue;
 
     for (int retry = 0; retry < 2; retry++) {
       int dist = 0;
@@ -197,3 +197,210 @@ String ultrasonicScanPins(int fanPin) {
   Serial.println("[ULTRASONIK] Modul ultrasonik belum merespon.");
   return "Belum merespon (menunggu sensor baru)";
 }
+
+// ==========================================
+// SENSOR SUHU & KELEMBABAN (DHT11 / DHT22)
+// Driver ESP32 dengan microsecond-timing & portENTER_CRITICAL
+// ==========================================
+namespace {
+float currentTemp = 0.0f;
+float currentHumidity = 0.0f;
+float lastGoodTemp = 0.0f;
+float lastGoodHum = 0.0f;
+bool tempValid = false;
+int consecutiveFails = 0;
+unsigned long lastDhtRead = 0;
+const char *statusStr = "Menunggu sensor...";
+
+enum class DhtStatus {
+  OK,
+  STUCK_LOW,
+  STUCK_HIGH_NO_RESPONSE,
+  TIMEOUT_HANDSHAKE,
+  TIMEOUT_DATA,
+  CHECKSUM_ERROR,
+  OUT_OF_RANGE
+};
+
+DhtStatus readDhtRaw(float &outTemp, float &outHum) {
+  // Pastikan pin dalam keadaan INPUT_PULLUP
+  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
+  delayMicroseconds(50);
+
+  // Jika sebelum start pin sudah LOW, kemungkinan korslet ke GND atau modul rusak
+  if (digitalRead(cfg::PIN_DHT) == LOW) {
+    return DhtStatus::STUCK_LOW;
+  }
+
+  // 1. Sinyal Start: Tarik garis ke LOW minimal 18-20 ms
+  pinMode(cfg::PIN_DHT, OUTPUT);
+  digitalWrite(cfg::PIN_DHT, LOW);
+  delay(20);
+
+  // 2. Masuki critical section agar FreeRTOS task / interrupt tidak mengganggu timing pulsa
+  portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+  portENTER_CRITICAL(&mux);
+
+  // Lepaskan garis ke INPUT_PULLUP (tarik ke HIGH)
+  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
+  delayMicroseconds(30);
+
+  // 3. Tangkap respon sensor: sensor harus menarik ke LOW dalam waktu ~20-50 µs
+  uint32_t t = micros();
+  while (digitalRead(cfg::PIN_DHT) == HIGH) {
+    if (micros() - t > 100) {
+      portEXIT_CRITICAL(&mux);
+      return DhtStatus::STUCK_HIGH_NO_RESPONSE;
+    }
+  }
+
+  // 4. Pulsa respon LOW dari sensor (~80 µs)
+  t = micros();
+  while (digitalRead(cfg::PIN_DHT) == LOW) {
+    if (micros() - t > 120) {
+      portEXIT_CRITICAL(&mux);
+      return DhtStatus::TIMEOUT_HANDSHAKE;
+    }
+  }
+
+  // 5. Pulsa respon HIGH dari sensor (~80 µs)
+  t = micros();
+  while (digitalRead(cfg::PIN_DHT) == HIGH) {
+    if (micros() - t > 120) {
+      portEXIT_CRITICAL(&mux);
+      return DhtStatus::TIMEOUT_HANDSHAKE;
+    }
+  }
+
+  // 6. Baca 40 bit data (5 byte)
+  uint8_t data[5] = {0, 0, 0, 0, 0};
+  for (int i = 0; i < 40; i++) {
+    // Pulsa LOW 50 µs pembuka bit
+    t = micros();
+    while (digitalRead(cfg::PIN_DHT) == LOW) {
+      if (micros() - t > 80) {
+        portEXIT_CRITICAL(&mux);
+        return DhtStatus::TIMEOUT_DATA;
+      }
+    }
+
+    // Ukur durasi pulsa HIGH
+    t = micros();
+    while (digitalRead(cfg::PIN_DHT) == HIGH) {
+      if (micros() - t > 120) {
+        portEXIT_CRITICAL(&mux);
+        return DhtStatus::TIMEOUT_DATA;
+      }
+    }
+    uint32_t highDur = micros() - t;
+
+    data[i / 8] <<= 1;
+    // Logika 1: pulsa HIGH ~70 µs (> 40 µs). Logika 0: pulsa HIGH ~26-28 µs (< 40 µs).
+    if (highDur > 40) {
+      data[i / 8] |= 1;
+    }
+  }
+
+  portEXIT_CRITICAL(&mux);
+
+  // 7. Verifikasi Checksum
+  uint8_t sum = (data[0] + data[1] + data[2] + data[3]) & 0xFF;
+  if (data[4] != sum) {
+    return DhtStatus::CHECKSUM_ERROR;
+  }
+
+  // 8. Parsing nilai suhu dan kelembaban
+  // Format standar DHT11
+  float t11 = data[2] + (data[3] & 0x7F) * 0.1f;
+  if (data[3] & 0x80) t11 = -t11;
+  float h11 = data[0] + data[1] * 0.1f;
+
+  if (t11 >= 0.0f && t11 <= 60.0f && h11 >= 15.0f && h11 <= 95.0f) {
+    outTemp = t11;
+    outHum = h11;
+    return DhtStatus::OK;
+  }
+
+  // Coba format 16-bit DHT22 (jika modul yang dipasang DHT22/AM2302)
+  float t22 = (((data[2] & 0x7F) << 8) | data[3]) * 0.1f;
+  if (data[2] & 0x80) t22 = -t22;
+  float h22 = ((data[0] << 8) | data[1]) * 0.1f;
+
+  if (t22 >= -20.0f && t22 <= 70.0f && h22 >= 0.0f && h22 <= 100.0f) {
+    outTemp = t22;
+    outHum = h22;
+    return DhtStatus::OK;
+  }
+
+  if (t11 > 0 || h11 > 0) {
+    outTemp = t11;
+    outHum = h11;
+    return DhtStatus::OK;
+  }
+
+  return DhtStatus::OUT_OF_RANGE;
+}
+} // namespace
+
+void dhtBegin() {
+  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
+  Serial.printf("[DHT11] Driver hardware terkalibrasi di GPIO D%d\n", cfg::PIN_DHT);
+}
+
+void dhtUpdate(unsigned long now) {
+  if (now - lastDhtRead < cfg::DHT_READ_MS) return;
+  lastDhtRead = now;
+
+  float t = 0.0f;
+  float h = 0.0f;
+  DhtStatus res = readDhtRaw(t, h);
+
+  if (res == DhtStatus::OK) {
+    currentTemp = t;
+    currentHumidity = h;
+    lastGoodTemp = t;
+    lastGoodHum = h;
+    tempValid = true;
+    consecutiveFails = 0;
+    statusStr = "OK";
+  } else {
+    consecutiveFails++;
+    switch (res) {
+      case DhtStatus::STUCK_LOW:
+        statusStr = "Pin D27 korslet ke GND";
+        break;
+      case DhtStatus::STUCK_HIGH_NO_RESPONSE:
+        statusStr = "Pin D27 tidak merespon (cek kabel Data/VCC/GND)";
+        break;
+      case DhtStatus::TIMEOUT_HANDSHAKE:
+        statusStr = "Timeout handshake awal DHT11";
+        break;
+      case DhtStatus::TIMEOUT_DATA:
+        statusStr = "Timeout transmisi bit DHT11";
+        break;
+      case DhtStatus::CHECKSUM_ERROR:
+        statusStr = "Checksum error (gangguan sinyal)";
+        break;
+      default:
+        statusStr = "Nilai suhu di luar rentang wajar";
+        break;
+    }
+
+    // Jika gagal, pertahankan nilai baik terakhir sampai batas toleransi
+    if (consecutiveFails < cfg::DHT_MAX_CONSECUTIVE_FAILS && lastGoodTemp > 0.0f) {
+      tempValid = true;
+      currentTemp = lastGoodTemp;
+      currentHumidity = lastGoodHum;
+    } else {
+      tempValid = false;
+      currentTemp = 0.0f;
+      currentHumidity = 0.0f;
+    }
+  }
+}
+
+float dhtTemperature() { return currentTemp; }
+float dhtHumidity() { return currentHumidity; }
+bool dhtIsValid() { return tempValid; }
+const char *dhtStatusMessage() { return statusStr; }
+

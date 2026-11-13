@@ -54,7 +54,7 @@ function setOnline(on) {
   flag('conn', 'bad', !on);
   if (!on) text('connText', 'Terputus');
   put('body:off', !on, x => document.body.classList.toggle('offline', x));
-  if (!on) ['doorSub', 'modeSub', 'flameSub', 'distSub'].forEach(id => text(id, 'Offline'));
+  if (!on) ['doorSub', 'modeSub', 'flameSub', 'distSub', 'tempSub'].forEach(id => text(id, 'Offline'));
   sync();
 }
 
@@ -155,6 +155,12 @@ function render(d) {
   put('fill', on3 && dist > 0 ? Math.min(dist, SCALE_CM) : 0, x => { $('distFill').style.width = (x / SCALE_CM * 100) + '%'; });
   put('tick', d.maxDistance, x => { $('distTick').style.left = Math.min(100, x / SCALE_CM * 100) + '%'; });
 
+  // Suhu & Kelembaban (DHT11)
+  const hasTemp = d.tempValid && typeof d.temp === 'number';
+  text('tempNum', hasTemp ? d.temp.toFixed(1) : '--');
+  text('tempSub', hasTemp ? ('Lembab: ' + d.humidity.toFixed(0) + '%') : (d.dhtStatus || 'Menunggu sensor...'));
+  put('tempFill', hasTemp ? Math.min(Math.max(d.temp, 0), 50) : 0, x => { $('tempFill').style.width = (x / 50 * 100) + '%'; });
+
   // Pengaturan
   text('sFlame', d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW');
   text('sUs', 'Trig D' + d.trigPin + ', Echo D' + d.echoPin);
@@ -167,6 +173,8 @@ function render(d) {
   text('iTouch', d.touchRaw + ' / ' + d.touchBaseline);
   text('iEcho', d.rawEcho + ' µs');
   text('iMax', '≤ ' + d.maxDistance + ' cm');
+  text('iTemp', hasTemp ? (d.temp.toFixed(1) + ' °C') : (d.dhtStatus || 'Tidak terbaca'));
+  text('iHum', hasTemp ? (d.humidity.toFixed(0) + ' %') : (d.dhtStatus || 'Tidak terbaca'));
 
   sync();
 }

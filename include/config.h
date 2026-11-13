@@ -21,6 +21,7 @@ constexpr int PIN_TOUCH = 4;         // Touch0
 constexpr int PIN_TRIG_DEFAULT = 4;  // HC-SR04 (bisa ditukar dari web)
 constexpr int PIN_ECHO_DEFAULT = 5;
 constexpr int PIN_FAN_DEFAULT = 32;  // bisa diganti lewat /api/fan?pin=
+constexpr int PIN_DHT = 27;          // DHT11 sensor suhu & kelembaban (D27)
 constexpr int PIN_SDA = 21;
 constexpr int PIN_SCL = 22;
 
@@ -38,7 +39,7 @@ constexpr unsigned long DOOR_HOLD_MS = 2000;   // "Buka Pintu (2 Detik)"
 constexpr unsigned long SERVO_TICK_MS = 20;    // servo membaca pulsa tiap 20 ms
 
 // Sensor
-constexpr int MAX_DISTANCE_CM = 20;
+constexpr int MAX_DISTANCE_CM = 10;
 constexpr int TOUCH_DELTA_THRESHOLD = 250;
 constexpr int TOUCH_BASELINE_FALLBACK = 1380;
 // Modul api yang terpasang mengeluarkan 0 saat aman (terukur di D34), jadi 1 = api.
@@ -50,5 +51,7 @@ constexpr unsigned long FLAME_RELEASE_MS = 1500;
 constexpr unsigned long FLAME_READ_MS = 15;
 constexpr unsigned long TOUCH_READ_MS = 40;
 constexpr unsigned long ULTRASONIC_PING_MS = 90;
+constexpr unsigned long DHT_READ_MS = 2000;  // DHT11 minimal butuh jeda 1-2 detik antar pembacaan
+constexpr int DHT_MAX_CONSECUTIVE_FAILS = 4; // Pertahankan nilai lama hingga 4x gagal baca berturut-turut
 
 } // namespace cfg

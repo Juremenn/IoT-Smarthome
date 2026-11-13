@@ -46,6 +46,7 @@ svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.5;stroke
 #tMode{--tint:#EEE8FB;--deep:#DDD3F6;--on:#B6A2EC;--ink:#523F9E}
 #tFlame{--tint:#FCE6EC;--deep:#F7CFDA;--on:#F2A9BD;--ink:#9B2C4A}
 #tDist{--tint:#E2F1FB;--deep:#C8E4F6;--on:#9ACDEE;--ink:#1E5F8C}
+#tTemp{--tint:#E0F4F2;--deep:#C4ECE8;--on:#82D5CC;--ink:#12635B}
 @media (hover:hover){button.hit:hover:not(:disabled){background:var(--deep)}}
 button.hit:active:not(:disabled) .ic{transform:scale(.94)}
 .t-title{align-self:flex-start;font-size:12px;color:var(--muted)}
@@ -72,7 +73,7 @@ button.hit:active:not(:disabled) .ic{transform:scale(.94)}
 .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--on);transition:width var(--t)}
 .tile.on .fill{background:var(--ink)}
 .tick{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--ink)}
-#tDist .t-sub{margin-top:8px}
+#tDist .t-sub,#tTemp .t-sub{margin-top:8px}
 
 /* Api: bahaya */
 .tile.danger{background:var(--red);border-color:var(--red);color:#fff}
