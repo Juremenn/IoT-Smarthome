@@ -210,6 +210,9 @@ float lastGoodHum = 0.0f;
 bool tempValid = false;
 int consecutiveFails = 0;
 unsigned long lastDhtRead = 0;
+unsigned long startPulseBegin = 0;
+enum class DhtFsmState { IDLE, PULSING_START };
+DhtFsmState dhtState = DhtFsmState::IDLE;
 const char *statusStr = "Menunggu sensor...";
 
 enum class DhtStatus {
@@ -222,22 +225,7 @@ enum class DhtStatus {
   OUT_OF_RANGE
 };
 
-DhtStatus readDhtRaw(float &outTemp, float &outHum) {
-  // Pastikan pin dalam keadaan INPUT_PULLUP
-  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
-  delayMicroseconds(50);
-
-  // Jika sebelum start pin sudah LOW, kemungkinan korslet ke GND atau modul rusak
-  if (digitalRead(cfg::PIN_DHT) == LOW) {
-    return DhtStatus::STUCK_LOW;
-  }
-
-  // 1. Sinyal Start: Tarik garis ke LOW minimal 18-20 ms
-  pinMode(cfg::PIN_DHT, OUTPUT);
-  digitalWrite(cfg::PIN_DHT, LOW);
-  delay(20);
-
-  // 2. Masuki critical section agar FreeRTOS task / interrupt tidak mengganggu timing pulsa
+DhtStatus readDhtFinish(float &outTemp, float &outHum) {
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
   portENTER_CRITICAL(&mux);
 
@@ -245,7 +233,7 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
   pinMode(cfg::PIN_DHT, INPUT_PULLUP);
   delayMicroseconds(30);
 
-  // 3. Tangkap respon sensor: sensor harus menarik ke LOW dalam waktu ~20-50 µs
+  // 1. Tangkap respon sensor: sensor harus menarik ke LOW dalam waktu ~20-50 µs
   uint32_t t = micros();
   while (digitalRead(cfg::PIN_DHT) == HIGH) {
     if (micros() - t > 100) {
@@ -254,7 +242,7 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
     }
   }
 
-  // 4. Pulsa respon LOW dari sensor (~80 µs)
+  // 2. Pulsa respon LOW dari sensor (~80 µs)
   t = micros();
   while (digitalRead(cfg::PIN_DHT) == LOW) {
     if (micros() - t > 120) {
@@ -263,7 +251,7 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
     }
   }
 
-  // 5. Pulsa respon HIGH dari sensor (~80 µs)
+  // 3. Pulsa respon HIGH dari sensor (~80 µs)
   t = micros();
   while (digitalRead(cfg::PIN_DHT) == HIGH) {
     if (micros() - t > 120) {
@@ -272,7 +260,7 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
     }
   }
 
-  // 6. Baca 40 bit data (5 byte)
+  // 4. Baca 40 bit data (5 byte)
   uint8_t data[5] = {0, 0, 0, 0, 0};
   for (int i = 0; i < 40; i++) {
     // Pulsa LOW 50 µs pembuka bit
@@ -303,14 +291,13 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
 
   portEXIT_CRITICAL(&mux);
 
-  // 7. Verifikasi Checksum
+  // 5. Verifikasi Checksum
   uint8_t sum = (data[0] + data[1] + data[2] + data[3]) & 0xFF;
   if (data[4] != sum) {
     return DhtStatus::CHECKSUM_ERROR;
   }
 
-  // 8. Parsing nilai suhu dan kelembaban
-  // Format standar DHT11
+  // 6. Parsing nilai suhu dan kelembaban
   float t11 = data[2] + (data[3] & 0x7F) * 0.1f;
   if (data[3] & 0x80) t11 = -t11;
   float h11 = data[0] + data[1] * 0.1f;
@@ -340,21 +327,8 @@ DhtStatus readDhtRaw(float &outTemp, float &outHum) {
 
   return DhtStatus::OUT_OF_RANGE;
 }
-} // namespace
 
-void dhtBegin() {
-  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
-  Serial.printf("[DHT11] Driver hardware terkalibrasi di GPIO D%d\n", cfg::PIN_DHT);
-}
-
-void dhtUpdate(unsigned long now) {
-  if (now - lastDhtRead < cfg::DHT_READ_MS) return;
-  lastDhtRead = now;
-
-  float t = 0.0f;
-  float h = 0.0f;
-  DhtStatus res = readDhtRaw(t, h);
-
+void applyDhtResult(DhtStatus res, float t, float h) {
   if (res == DhtStatus::OK) {
     currentTemp = t;
     currentHumidity = h;
@@ -386,7 +360,6 @@ void dhtUpdate(unsigned long now) {
         break;
     }
 
-    // Jika gagal, pertahankan nilai baik terakhir sampai batas toleransi
     if (consecutiveFails < cfg::DHT_MAX_CONSECUTIVE_FAILS && lastGoodTemp > 0.0f) {
       tempValid = true;
       currentTemp = lastGoodTemp;
@@ -396,6 +369,44 @@ void dhtUpdate(unsigned long now) {
       currentTemp = 0.0f;
       currentHumidity = 0.0f;
     }
+  }
+}
+} // namespace
+
+void dhtBegin() {
+  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
+  Serial.printf("[DHT11] Driver hardware terkalibrasi di GPIO D%d\n", cfg::PIN_DHT);
+}
+
+void dhtUpdate(unsigned long now) {
+  if (dhtState == DhtFsmState::IDLE) {
+    if (now - lastDhtRead < cfg::DHT_READ_MS) return;
+
+    pinMode(cfg::PIN_DHT, INPUT_PULLUP);
+    delayMicroseconds(50);
+    if (digitalRead(cfg::PIN_DHT) == LOW) {
+      applyDhtResult(DhtStatus::STUCK_LOW, 0.0f, 0.0f);
+      lastDhtRead = now;
+      return;
+    }
+
+    // Kirim sinyal start LOW secara non-blocking
+    pinMode(cfg::PIN_DHT, OUTPUT);
+    digitalWrite(cfg::PIN_DHT, LOW);
+    startPulseBegin = now;
+    dhtState = DhtFsmState::PULSING_START;
+    return;
+  }
+
+  if (dhtState == DhtFsmState::PULSING_START) {
+    if (now - startPulseBegin < 20) return; // tunggu 20 ms secara non-blocking
+
+    float t = 0.0f;
+    float h = 0.0f;
+    DhtStatus res = readDhtFinish(t, h);
+    applyDhtResult(res, t, h);
+    lastDhtRead = now;
+    dhtState = DhtFsmState::IDLE;
   }
 }
 

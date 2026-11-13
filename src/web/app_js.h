@@ -5,7 +5,7 @@
 const char APP_JS[] PROGMEM = R"rawliteral(
 (() => {
 'use strict';
-const POLL_MS = 600, FAIL_LIMIT = 3, TIMEOUT_MS = 3000, SCALE_CM = 40;
+const POLL_MS = 300, FAIL_LIMIT = 3, TIMEOUT_MS = 3000, SCALE_CM = 40;
 const DOOR_CLOSE_MS = 7000; // sama dengan DOOR_CLOSE_MS di include/config.h
 const DOOR_CLOSED = 'M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M15 12h.01';
 const DOOR_OPEN = 'M14 4h4a1 1 0 0 1 1 1v16M3 21h18M5 21V5.5L14 3v18M11 12h.01';
@@ -221,63 +221,164 @@ tabs.forEach((t, i) => {
 });
 
 /* Alarm suara saat api terdeteksi.
-   Browser baru boleh memutar suara setelah halaman disentuh, jadi sentuhan pertama
-   dipakai untuk membuka kunci audio. Tombol di tile Api bisa mematikan bunyinya. */
+   Mendukung pemutaran audio MP3 + fallback Web Audio API synthesizer dengan
+   manajemen promise asinkron anti-interupsi dan latch minimal 3.5 detik. */
 const alarm = new Audio('/alarm.mp3');
 alarm.loop = true;
 alarm.preload = 'auto';
-let alarmUnlocked = false, alarmMuted = false, alarmFire = false, testTimer = 0;
+
+let audioCtx = null, synthInterval = 0;
+let alarmUnlocked = false, alarmMuted = false, alarmFire = false;
+let isPlayPending = false, shouldPlay = false;
+let latchUntil = 0, testTimer = 0;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) audioCtx = new AC();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+function startSynthAlarm() {
+  if (synthInterval) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  let high = false;
+  synthInterval = setInterval(() => {
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(high ? 960 : 770, ctx.currentTime);
+      high = !high;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.19);
+    } catch (e) {}
+  }, 200);
+}
+
+function stopSynthAlarm() {
+  if (synthInterval) {
+    clearInterval(synthInterval);
+    synthInterval = 0;
+  }
+}
 
 function unlockAudio() {
-  if (alarmUnlocked) return;
-  alarm.muted = true;
-  alarm.play().then(() => {
-    if (!alarmFire) { alarm.pause(); alarm.currentTime = 0; }
-    alarm.muted = false;
-    alarmUnlocked = true;
-  }).catch(() => { alarm.muted = false; });
+  getAudioCtx();
+  if (!alarmUnlocked) {
+    alarm.muted = true;
+    alarm.play().then(() => {
+      if (!shouldPlay) {
+        alarm.pause();
+        alarm.currentTime = 0;
+      }
+      alarm.muted = false;
+      alarmUnlocked = true;
+    }).catch(() => {
+      alarm.muted = false;
+    });
+  }
 }
-['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, true));
+['pointerdown', 'keydown', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
+
+function soundStart() {
+  shouldPlay = true;
+  if (alarmMuted) return;
+  getAudioCtx();
+
+  if (!isPlayPending && alarm.paused) {
+    isPlayPending = true;
+    alarm.loop = true;
+    alarm.play().then(() => {
+      isPlayPending = false;
+      if (!shouldPlay) {
+        alarm.pause();
+        alarm.currentTime = 0;
+      }
+      stopSynthAlarm();
+      alarmLabel();
+    }).catch(() => {
+      isPlayPending = false;
+      // Jika MP3 gagal / belum ter-buffer, bunyikan synthesizer bawaan browser
+      if (shouldPlay && !alarmMuted) startSynthAlarm();
+      alarmLabel();
+    });
+  }
+}
+
+function soundStop() {
+  shouldPlay = false;
+  stopSynthAlarm();
+  if (!isPlayPending && !alarm.paused) {
+    alarm.pause();
+    alarm.currentTime = 0;
+  }
+  alarmLabel();
+}
 
 function alarmLabel() {
-  text('bAlarm', alarm.paused ? 'Bunyikan' : 'Matikan');
-  attr('bAlarm', 'aria-label', alarm.paused ? 'Bunyikan alarm' : 'Matikan alarm');
+  const isPlaying = !alarm.paused || synthInterval !== 0;
+  text('bAlarm', isPlaying ? 'Matikan' : 'Bunyikan');
+  attr('bAlarm', 'aria-label', isPlaying ? 'Matikan alarm' : 'Bunyikan alarm');
 }
 alarm.addEventListener('play', alarmLabel);
 alarm.addEventListener('pause', alarmLabel);
 
 function alarmUpdate(fire) {
-  alarmFire = fire;
-  put('bAlarm:h', fire, x => { $('bAlarm').hidden = !x; });
-  if (fire && !alarmMuted) {
-    if (alarm.paused) { alarm.loop = true; alarm.play().catch(alarmLabel); }
-  } else if (!fire) {
+  const now = Date.now();
+  if (fire) {
+    latchUntil = now + 3500; // Tahan alarm berbunyi minimal 3.5 detik
+  }
+  const active = fire || (now < latchUntil);
+  alarmFire = active;
+  put('bAlarm:h', active, x => { $('bAlarm').hidden = !x; });
+
+  if (active && !alarmMuted) {
+    soundStart();
+  } else if (!active) {
     alarmMuted = false;
-    if (!alarm.paused && !testTimer) { alarm.pause(); alarm.currentTime = 0; }
+    if (!testTimer) {
+      soundStop();
+    }
   }
   alarmLabel();
 }
 
 $('bAlarm').addEventListener('click', () => {
-  if (alarm.paused) {
-    alarmMuted = false;
-    alarm.loop = true;
-    alarm.play().catch(() => toast('Suara diblokir browser'));
-  } else {
+  const isPlaying = !alarm.paused || synthInterval !== 0;
+  if (isPlaying) {
     alarmMuted = true;
-    alarm.pause();
+    latchUntil = 0;
+    soundStop();
     toast('Alarm dimatikan');
+  } else {
+    alarmMuted = false;
+    latchUntil = Date.now() + 4000;
+    soundStart();
+    toast('Alarm dibunyikan');
   }
 });
 
 $('bAlarmTest').addEventListener('click', () => {
   if (alarmFire) return;
   clearTimeout(testTimer);
-  alarm.currentTime = 0;
-  alarm.loop = false;
-  alarm.play().then(() => {
-    testTimer = setTimeout(() => { testTimer = 0; if (!alarmFire) { alarm.pause(); alarm.currentTime = 0; } }, 4200);
-  }).catch(() => toast('Suara diblokir browser'));
+  alarmMuted = false;
+  latchUntil = Date.now() + 4200;
+  soundStart();
+  testTimer = setTimeout(() => {
+    testTimer = 0;
+    latchUntil = 0;
+    soundStop();
+  }, 4200);
 });
 
 sync();

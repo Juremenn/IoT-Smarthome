@@ -40,18 +40,18 @@ constexpr unsigned long SERVO_TICK_MS = 20;    // servo membaca pulsa tiap 20 ms
 
 // Sensor
 constexpr int MAX_DISTANCE_CM = 10;
-constexpr int TOUCH_DELTA_THRESHOLD = 250;
+constexpr int TOUCH_DELTA_THRESHOLD = 120;       // Lebih peka terhadap sentuhan lembut (sebelumnya 250)
 constexpr int TOUCH_BASELINE_FALLBACK = 1380;
 // Modul api yang terpasang mengeluarkan 0 saat aman (terukur di D34), jadi 1 = api.
 constexpr bool FLAME_ACTIVE_HIGH_DEFAULT = true;
 // Api baru dianggap ada kalau sinyal aktif terus selama FLAME_CONFIRM_MS (lonjakan singkat diabaikan),
 // dan baru dianggap padam setelah sinyal tenang selama FLAME_RELEASE_MS (alarm tidak hidup-mati).
-constexpr unsigned long FLAME_CONFIRM_MS = 500;
-constexpr unsigned long FLAME_RELEASE_MS = 1500;
-constexpr unsigned long FLAME_READ_MS = 15;
-constexpr unsigned long TOUCH_READ_MS = 40;
-constexpr unsigned long ULTRASONIC_PING_MS = 90;
-constexpr unsigned long DHT_READ_MS = 2000;  // DHT11 minimal butuh jeda 1-2 detik antar pembacaan
-constexpr int DHT_MAX_CONSECUTIVE_FAILS = 4; // Pertahankan nilai lama hingga 4x gagal baca berturut-turut
+constexpr unsigned long FLAME_CONFIRM_MS = 80;    // Reaksi cepat deteksi nyala api 80 ms (sebelumnya 500 ms)
+constexpr unsigned long FLAME_RELEASE_MS = 1200;  // Tahan status bahaya 1.2 detik agar stabil (sebelumnya 1500 ms)
+constexpr unsigned long FLAME_READ_MS = 10;       // Pemantauan pin tiap 10 ms (sebelumnya 15 ms)
+constexpr unsigned long TOUCH_READ_MS = 15;       // Sampling sentuh ~66x per detik (sebelumnya 40 ms)
+constexpr unsigned long ULTRASONIC_PING_MS = 40;  // Sampling jarak 25x per detik (sebelumnya 90 ms)
+constexpr unsigned long DHT_READ_MS = 1200;       // Update suhu tiap 1.2 detik (sebelumnya 2000 ms)
+constexpr int DHT_MAX_CONSECUTIVE_FAILS = 4;      // Pertahankan nilai lama hingga 4x gagal baca berturut-turut
 
 } // namespace cfg
