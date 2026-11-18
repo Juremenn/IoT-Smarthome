@@ -110,19 +110,6 @@ void doorBegin() {
   writeServo(0.0f);
 }
 
-void doorTestSweep() {
-  Serial.println(">>> [TEST SERVO] Memulai pengujian servo (0° -> 90° -> 180° -> 0°)...");
-  writeServo(0.0f);
-  delay(500);
-  writeServo(HALF);
-  delay(800);
-  writeServo(OPEN);
-  delay(800);
-  writeServo(0.0f);
-  delay(500);
-  Serial.println(">>> [TEST SERVO] Pengujian servo selesai. Kembali ke posisi 0°.");
-}
-
 void doorUpdate(unsigned long now) {
   if (phase == DoorPhase::Opening || phase == DoorPhase::Closing) {
     if (lastTick != 0 && now - lastTick < cfg::SERVO_TICK_MS) return;

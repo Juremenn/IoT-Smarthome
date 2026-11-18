@@ -12,7 +12,6 @@ void doorStartCycle();
 void doorOpenManual();
 void doorCloseManual();  // diabaikan selama evakuasi api
 void doorSetEvacuation(bool active);
-void doorTestSweep();
 
 DoorPhase doorPhase();
 bool doorIsManualOpen();

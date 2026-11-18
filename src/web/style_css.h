@@ -83,6 +83,8 @@ button.hit:active:not(:disabled) .ic{transform:scale(.94)}
 .tile .alarm-btn{margin-top:12px;min-width:0;padding:0 12px;white-space:nowrap;background:#fff;color:var(--red);border-color:#fff;font-weight:600}
 @media (hover:hover){.tile .alarm-btn:hover:not(:disabled){background:#FCE6EC}}
 .tile .alarm-btn:active:not(:disabled){background:#F7CFDA}
+.tile .flame-logic-btn{margin-top:8px;font-size:11px;min-height:28px;padding:2px 8px;border-radius:6px;background:#fff;border:1px solid rgba(155,44,74,.25);color:var(--ink);cursor:pointer}
+.tile.danger .flame-logic-btn{display:none}
 @keyframes pulse{50%{background:var(--red-2);border-color:var(--red-2)}}
 
 /* Offline: semua tile abu-abu */

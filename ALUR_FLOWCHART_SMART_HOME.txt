@@ -1,0 +1,314 @@
+================================================================================
+          PANDUAN LENGKAP PENYUSUNAN FLOWCHART SISTEM IOT SMART HOME
+                         (PROYEK MINIATUR RUMAH JOGLO)
+================================================================================
+
+File ini dirancang sebagai panduan praktis dan detail agar Anda bisa langsung 
+menggambar flowchart dengan alur yang benar, logis, dan sesuai standar teknis 
+(cocok untuk skripsi, laporan proyek, makalah, maupun presentasi).
+
+--------------------------------------------------------------------------------
+DAFTAR ISI:
+1. PANDUAN SIMBOL STANDAR FLOWCHART (ANSI/ISO)
+2. FLOWCHART 1: ALUR SISTEM UTAMA (GLOBAL FLOWCHART / MAIN LOOP)
+3. FLOWCHART 2: ALUR KONEKSI JARINGAN & WEB SERVER (WIFI / ACCESS POINT)
+4. FLOWCHART 3: ALUR LOGIKA OTOMASI PINTU SERVO (TOUCH, ULTRASONIK, API)
+5. FLOWCHART 4: ALUR SENSOR SUHU & KELEMBABAN (DHT11)
+6. RINGKASAN TEKS SIAP PAKAI (BISA LANGSUNG DICOPY KE DRAW.IO / CANVA / WORD)
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. PANDUAN SIMBOL STANDAR FLOWCHART (ANSI/ISO)
+================================================================================
+Sebelum menggambar, pastikan bentuk simbol yang digunakan tepat:
+
+1. TERMINATOR (Bentuk Oval / Kapsul Persegi Tumpul)
+   - Fungsi: Titik Mulai (Start) dan Titik Selesai (End) alur sistem.
+   - Contoh teks: "Mulai (Power ON)", "Selesai", "Kembali ke Loop".
+
+2. PROSES / PROCESS (Bentuk Persegi Panjang)
+   - Fungsi: Aksi, kalkulasi, penugasan variabel, inisialisasi pin/komponen.
+   - Contoh teks: "Inisialisasi GPIO & Sensor", "Hitung Sudut Servo (Ease-In-Out)".
+
+3. KEPUTUSAN / DECISION (Bentuk Belah Ketupat / Diamond)
+   - Fungsi: Percabangan kondisi logika dengan 2 opsi keluaran (Ya/Tidak atau True/False).
+   - Contoh teks: "Apakah WiFi Terhubung?", "Apakah Terdeteksi Api?".
+
+4. INPUT / OUTPUT (Bentuk Jajaran Genjang)
+   - Fungsi: Menerima data sensor atau mengirim informasi keluar.
+   - Contoh teks: "Baca Nilai Sensor D34/D4/Echo", "Tampilkan Status ke Layar OLED".
+
+5. SUBROUTINE / PREDEFINED PROCESS (Persegi Panjang dengan Garis Ganda di Sisi)
+   - Fungsi: Menunjukkan modul atau fungsi terpisah (misal fungsi doorUpdate()).
+
+6. GARIS ALIR / FLOWLINE (Panah)
+   - Fungsi: Menghubungkan satu langkah ke langkah berikutnya sesuai urutan waktu.
+
+
+================================================================================
+2. FLOWCHART 1: ALUR SISTEM UTAMA (GLOBAL FLOWCHART)
+================================================================================
+Ini adalah diagram utama yang menggambarkan siklus hidup program ESP32 dari 
+pertama kali dialiri listrik hingga berjalan tanpa henti (Setup -> Loop).
+
+[LANGKAH-LANGKAH ALUR]:
+
+1. [TERMINATOR] : Mulai (ESP32 Dinyalakan / Power ON)
+      |
+      v
+2. [PROSES]     : Inisialisasi Serial Monitor (Baudrate 115200)
+      |
+      v
+3. [PROSES]     : Inisialisasi Perangkat Keras (Hardware Setup):
+                  - Servo Pintu (D13/D12) diset ke sudut tertutup (180°)
+                  - Pin Sensor Api 5-Way (D34) sebagai INPUT
+                  - Pin Sensor Sentuh (D4) & Baseline Kalibrasi
+                  - Pin Sensor Ultrasonik (Trig D4, Echo D5)
+                  - Pin Sensor Suhu DHT11 (D27)
+                  - Layar OLED SSD1306 (I2C: D21/D22)
+      |
+      v
+4. [PROSES]     : Tampilkan Pesan Booting di Layar OLED: "Memulai Sistem..."
+      |
+      v
+5. [PROSES]     : Inisialisasi Jaringan WiFi (Coba Hubungkan ke WiFi Rumah)
+      |
+      v
+6. [DECISION]   : Apakah WiFi berhasil terhubung dalam 6 detik?
+                  ├──> [YA]    : Dapatkan IP Station (misal: 192.168.1.x)
+                  └──> [TIDAK] : Aktifkan Mode Access Point (AP) Hotspot:
+                                 SSID: "RumahJoglo-SmartHome"
+                                 IP Default: 192.168.4.1
+      |
+      v
+7. [PROSES]     : Mulai Web Server ESP32 & Daftarkan Endpoint HTTP (/api/*)
+      |
+      v
+8. [I / O]      : Tampilkan Splash Screen & Alamat IP di Layar OLED & Serial
+      |
+      v
+============== MASUK KE BLOK UTAMA (VOID LOOP - BERULANG TERUS) ==============
+      |
+      +---> 9. [PROSES] : Pemeriksaan & Pemeliharaan Jaringan (networkMaintain)
+            |
+            v
+           10. [PROSES] : Tangani Permintaan Web Dashboard (webHandle / HTTP Client)
+            |
+            v
+           11. [I / O]  : Pembacaan Sensor Berkala (dhtUpdate, flameUpdate, touch, ultrasonik)
+            |
+            v
+           12. [PROSES] : Evaluasi Logika Otomasi (automationUpdate)
+            |
+            v
+           13. [PROSES] : Update Pergerakan Halus Servo Pintu (doorUpdate)
+            |
+            v
+           14. [I / O]  : Perbarui Tampilan Status di Layar OLED (oledUpdate)
+            |
+            v
+           15. [DECISION] : Apakah sudah selang 3 detik?
+                            ├──> [YA]    : [I/O] Cetak Log Status ke Serial Monitor
+                            └──> [TIDAK] : Lanjut langsung
+            |
+            v
+           16. [PROSES] : Jeda waktu singkat (Delay non-blocking 2 ms)
+            |
+            +-------------> (Kembali berputar ke langkah 9)
+
+
+================================================================================
+3. FLOWCHART 2: ALUR KONEKSI JARINGAN & WEB SERVER
+================================================================================
+Bagan ini menjelaskan bagaimana sistem memastikan dashboard tetap dapat dibuka 
+bahkan saat tidak ada router internet.
+
+1. [TERMINATOR] : Mulai Konfigurasi Jaringan
+      |
+      v
+2. [I / O]      : Baca Kredensial WiFi (SSID & Password dari config)
+      |
+      v
+3. [PROSES]     : Set WiFi Mode ke Station (STA) & Mulai Koneksi (WiFi.begin)
+      |
+      v
+4. [PROSES]     : Catat Waktu Mulai (Mulai Timer 6000 ms)
+      |
+      v
+5. [DECISION]   : Apakah Status WiFi == WL_CONNECTED?
+                  ├──> [YA] :
+                  │      1. Simpan Status Mode: "WiFi Rumah (STA)"
+                  │      2. Dapatkan IP Address dari Router
+                  │      3. [Selesai Setup Jaringan -> Lanjut Mulai Web Server]
+                  │
+                  └──> [TIDAK] :
+                         |
+                         v
+                  6. [DECISION] : Apakah Waktu Mencoba >= 6 Detik (Timeout)?
+                                  ├──> [TIDAK] : Ulangi cek status (Loop menunggu)
+                                  └──> [YA] :
+                                         |
+                                         v
+                                  7. [PROSES] : Alihkan Mode WiFi ke Access Point (AP)
+                                  8. [PROSES] : Buat Hotspot: "RumahJoglo-SmartHome"
+                                  9. [PROSES] : Set IP Statis AP: 192.168.4.1
+                                 10. [I / O]  : Tampilkan Status Hotspot di Serial Monitor
+                                         |
+                                         v
+11. [PROSES]    : Mulai Server HTTP (Port 80)
+12. [TERMINATOR]: Web Dashboard Siap Diakses di Browser
+
+
+================================================================================
+4. FLOWCHART 3: ALUR LOGIKA OTOMASI PINTU SERVO (CORE LOGIC)
+================================================================================
+Bagian ini adalah inti sistem otomasi pintu Rumah Joglo yang mencakup:
+- Prioritas Evakuasi Api
+- Mode Pemicu (Touch / Ultrasonik / Manual)
+- Pergerakan Halus (Ease-in-out Sine & Soft Close)
+
+[LANGKAH DETAIL]:
+
+1. [TERMINATOR] : Mulai Siklus Evaluasi Pintu (automationUpdate)
+      |
+      v
+2. [I / O]      : Baca Sinyal Sensor Api 5-Way pada GPIO D34
+      |
+      v
+3. [DECISION]   : Apakah Mode Saat Ini == MODE_FLAME dan Sinyal Api Aktif?
+                  (Terverifikasi > 80 ms untuk mencegah noise/pantulan cahaya)
+                  │
+                  ├──> [YA: KEADAAN DARURAT KEBAKARAN!]
+                  │      1. [PROSES] Aktifkan Status Evakuasi (Evacuation = TRUE)
+                  │      2. [PROSES] Gerakkan Servo Membuka Penuh ke 0°
+                  │      3. [PROSES] Kunci Status Pintu Terbuka Terus
+                  │      4. [PROSES] Tolak Perintah Tutup Pintu dari Web Dashboard
+                  │      5. [TERMINATOR] Selesai Siklus Ini (Menunggu Api Padam)
+                  │
+                  └──> [TIDAK / AMAN]
+                         |
+                         v
+4. [PROSES]     : Nonaktifkan Status Evakuasi (Evacuation = FALSE)
+      |
+      v
+5. [DECISION]   : Apakah Pintu Sedang Dikunci "Buka Terus" Manual dari Web?
+                  ├──> [YA]    : Pertahankan Posisi Terbuka Penuh (Abaikan Sensor)
+                  └──> [TIDAK] : Lanjutkan ke Pengecekan Sensor Pemicu
+                         |
+                         v
+6. [DECISION]   : Mode Pemicu yang Aktif?
+                  │
+                  ├──> [MODE SENTUH (D4)]:
+                  │      - [I / O] Baca Nilai Kapasitif Touch0 (D4)
+                  │      - [DECISION] Apakah Selisih Nilai (Delta) >= Ambang Batas (120)?
+                  │                     ├──> [YA]    : Terpemicu (Triggered = TRUE)
+                  │                     └──> [TIDAK] : Tidak Terpemicu
+                  │
+                  ├──> [MODE ULTRASONIK (HC-SR04)]:
+                  │      - [I / O] Pancarkan Pulsa Trig & Ukur Pantulan Echo
+                  │      - [PROSES] Hitung Jarak: (Durasi * 0.034) / 2 cm
+                  │      - [DECISION] Apakah Jarak > 0 DAN Jarak <= 10 cm?
+                  │                     ├──> [YA]    : Terpemicu (Triggered = TRUE)
+                  │                     └──> [TIDAK] : Tidak Terpemicu
+                  │
+                  └──> [MODE MANUAL WEB]:
+                         - Sensor Otomatis Tidak Digunakan (Triggered = FALSE)
+                         - Pintu Hanya Merespon Tombol Web Dashboard
+      |
+      v
+7. [DECISION]   : Apakah Status Pemicu (Triggered) == TRUE?
+                  │
+                  ├──> [YA] :
+                  │      1. [PROSES] Periksa Kondisi Pintu Saat Ini:
+                  │         - Jika Tertutup -> Mulai Buka Halus (Durasi 5000 ms)
+                  │         - Jika Sedang Terbuka -> Reset/Perpanjang Waktu Tahan (2 Detik)
+                  │         - Jika Sedang Menutup -> Langsung Balik Membuka (Anti-Terjepit)
+                  │
+                  └──> [TIDAK] :
+                         |
+                         v
+8. [DECISION]   : Apakah Pintu Berada di Siklus Otomatis (AutoCycle)?
+                  │
+                  ├──> [YA] :
+                  │      - [DECISION] Apakah Pintu Sudah Terbuka Penuh DAN Waktu Tahan (2 Detik) Habis?
+                  │                     ├──> [YA]    : Mulai Gerak Menutup Halus (Soft Close 7000 ms)
+                  │                     └──> [TIDAK] : Lanjutkan Menahan Posisi Terbuka
+                  │
+                  └──> [TIDAK] : Tetap di Posisi Saat Ini (Tertutup Rapat / Terbuka Manual)
+      |
+      v
+9. [SUBROUTINE] : doorUpdate(now):
+                  - Hitung Posisi Sudut Berdasarkan Waktu Tempuh & Kurva Sinus
+                  - Kirim Pulsa writeMicroseconds() ke Pin D13
+10. [TERMINATOR]: Selesai Siklus Pintu
+
+
+================================================================================
+5. FLOWCHART 4: ALUR SENSOR SUHU & KELEMBABAN (DHT11)
+================================================================================
+Bagan pendukung untuk fitur pemantauan suhu dan kelembaban ruangan.
+
+1. [TERMINATOR] : Mulai Siklus Suhu (dhtUpdate)
+      |
+      v
+2. [DECISION]   : Apakah Sudah Waktunya Baca DHT11? (Selang Waktu >= 1200 ms)
+                  ├──> [TIDAK] : Lewati Pembacaan Sensor Suhu
+                  └──> [YA]    :
+                         1. [PROSES] Kirim Sinyal Start Pulse ke Pin D27
+                         2. [I / O]  Baca Data 40-Bit dari DHT11 (Critical Timing)
+                         3. [PROSES] Verifikasi Checksum Data
+                         4. [DECISION] Apakah Data Valid?
+                                        ├──> [YA]    : Simpan Nilai Suhu (°C) & Kelembaban (%)
+                                        └──> [TIDAK] : Gunakan Nilai Terakhir (Toleransi s/d 4x Gagal)
+      |
+      v
+3. [TERMINATOR] : Selesai Siklus Suhu
+
+
+================================================================================
+6. RINGKASAN TEKS SIAP PAKAI (UNTUK DIMASUKKAN KE BENTUK KOTAK DI SOFTWARE DRAWING)
+================================================================================
+Gunakan teks ringkas di bawah ini saat menyusun kotak di Draw.io, Canva, atau Word:
+
+--- KOTAK FLOWCHART UTAMA ---
+1. [Oval]              : Mulai (Sistem Dihidupkan)
+2. [Persegi Panjang]   : Inisialisasi Servo, Sensor Api, Sentuh, Ultrasonik, DHT11, OLED
+3. [Persegi Panjang]   : Coba Koneksi ke WiFi Rumah (STA Mode)
+4. [Belah Ketupat]     : WiFi Terhubung (< 6 Detik)?
+   - Ya   -> [Persegi Panjang] Gunakan IP WiFi Router
+   - Tidak -> [Persegi Panjang] Buat Hotspot AP "RumahJoglo-SmartHome" (192.168.4.1)
+5. [Persegi Panjang]   : Jalankan Web Server ESP32 & Endpoint HTTP
+6. [Jajaran Genjang]   : Tampilkan IP & Status pada Layar OLED
+7. [Persegi Panjang]   : [Loop] Periksa Jaringan & Request Web Dashboard
+8. [Jajaran Genjang]   : [Loop] Baca Data Sensor (Api, Sentuh, Jarak, Suhu)
+9. [Persegi Panjang]   : [Loop] Proses Logika Otomasi Pintu (Touch/Ultrasonic/Flame)
+10. [Persegi Panjang]  : [Loop] Update Posisi Servo Pintu (Gerak Halus Non-Blocking)
+11. [Jajaran Genjang]  : [Loop] Perbarui Tampilan Layar OLED
+12. [Garis Kembali]    : Ulangi Siklus Loop
+
+--- KOTAK LOGIKA PINTU OTOMATIS ---
+1. [Belah Ketupat]     : Apakah Sensor Api Mendeteksi Api (D34)?
+   - Ya   -> [Persegi Panjang] Mode Evakuasi: Pintu Terbuka Penuh & Kunci Tutup
+   - Tidak -> Lanjut ke Pengecekan Sensor
+2. [Belah Ketupat]     : Cek Mode Pemicu:
+   - Sentuh     -> Apakah Nilai Sentuh D4 >= Ambang Batas?
+   - Ultrasonik -> Apakah Jarak <= 10 cm?
+   - Manual Web -> Menunggu Perintah Tombol Web
+3. [Belah Ketupat]     : Apakah Pemicu Terdeteksi?
+   - Ya   -> [Persegi Panjang] Buka Pintu Halus (5 Detik) / Perpanjang Waktu Tahan
+   - Tidak -> Lanjut
+4. [Belah Ketupat]     : Apakah Pintu Terbuka & Waktu Tahan 2 Detik Berakhir?
+   - Ya   -> [Persegi Panjang] Tutup Pintu Halus (Soft Close 7 Detik)
+   - Tidak -> Pertahankan Posisi Terbuka
+
+--------------------------------------------------------------------------------
+TIPS TAMBAHAN UNTUK TAMPILAN FLOWCHART YANG PROFESIONAL:
+- Beri label "Ya" dan "Tidak" yang jelas di setiap cabang belah ketupat.
+- Gunakan warna yang konsisten:
+  * Hijau: Start / Kondisi Normal
+  * Kuning/Oranye: Decision (Percabangan)
+  * Merah: Kondisi Bahaya (Evakuasi Api)
+  * Biru: Proses Aktuator & Tampilan
+- Arahkan alur utama mengalir dari atas ke bawah (Top-to-Bottom).
+================================================================================

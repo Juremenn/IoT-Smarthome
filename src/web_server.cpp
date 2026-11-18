@@ -5,8 +5,7 @@
 #include "automation.h"
 #include "config.h"
 #include "door.h"
-#include "fan.h"
-#include "network.h"
+#include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
 #include "web/alarm_mp3.h"
@@ -19,44 +18,57 @@ WebServer server(80);
 
 const char *boolStr(bool v) { return v ? "true" : "false"; }
 
-// Format JSON identik dengan versi sebelum refactor (urutan dan nama field sama).
+// Format JSON efisien & ringan untuk polling cepat (300ms)
 void handleStatus() {
   int mode = triggerMode();
   int distance = ultrasonicDistance();
-  bool isHand = (mode == MODE_ULTRASONIC) && (distance > 0 && distance <= cfg::MAX_DISTANCE_CM);
   bool isTouched = (mode == MODE_TOUCH) && touchIsTouched();
   bool oled = oledIsActive();
 
-  String json = "{";
-  json += "\"flame\":" + String(boolStr(flameDetected())) + ",";
-  json += "\"flameRaw\":" + String(flameRaw()) + ",";
-  json += "\"flameActiveHigh\":" + String(boolStr(flameActiveHigh())) + ",";
-  json += "\"fan\":" + String(boolStr(fanIsOn())) + ",";
-  json += "\"fanPin\":" + String(fanPin()) + ",";
-  json += "\"fanActiveLow\":" + String(boolStr(fanIsActiveLow())) + ",";
-  json += "\"isScanning\":false,";
-  json += "\"scannedPin\":-1,";
-  json += "\"door\":\"" + String(doorStatusText()) + "\",";
-  json += "\"doorTriggerMode\":" + String(mode) + ",";
-  json += "\"oled\":" + String(boolStr(oled)) + ",";
-  json += "\"oledAddress\":\"" + (oled ? String("0x") + String(oledAddress(), HEX) : "none") + "\",";
-  json += "\"touchRaw\":" + String(touchRawValue()) + ",";
-  json += "\"touchBaseline\":" + String(touchBaselineValue()) + ",";
-  json += "\"touchDetected\":" + String(boolStr(isTouched)) + ",";
-  json += "\"autoDoorUltrasonic\":" + String(boolStr(mode == MODE_ULTRASONIC)) + ",";
-  json += "\"autoServo\":" + String(boolStr(mode != MODE_MANUAL)) + ",";
-  json += "\"trigPin\":" + String(ultrasonicTrigPin()) + ",";
-  json += "\"echoPin\":" + String(ultrasonicEchoPin()) + ",";
-  json += "\"distance\":" + String(distance) + ",";
-  json += "\"maxDistance\":" + String(cfg::MAX_DISTANCE_CM) + ",";
-  json += "\"temp\":" + String(dhtTemperature(), 1) + ",";
-  json += "\"humidity\":" + String(dhtHumidity(), 1) + ",";
-  json += "\"tempValid\":" + String(boolStr(dhtIsValid())) + ",";
-  json += "\"dhtStatus\":\"" + String(dhtStatusMessage()) + "\",";
-  json += "\"handDetected\":" + String(boolStr(isHand || isTouched)) + ",";
-  json += "\"rawEcho\":" + String(ultrasonicLastEcho()) + ",";
-  json += "\"ip\":\"" + networkIp() + "\",";
-  json += "\"uptime\":" + String(millis() / 1000);
+  String json;
+  json.reserve(320);
+  json += "{\"flame\":";
+  json += boolStr(flameDetected());
+  json += ",\"flameRaw\":";
+  json += flameRaw();
+  json += ",\"flameActiveHigh\":";
+  json += boolStr(flameActiveHigh());
+  json += ",\"door\":\"";
+  json += doorStatusText();
+  json += "\",\"doorTriggerMode\":";
+  json += mode;
+  json += ",\"oled\":";
+  json += boolStr(oled);
+  json += ",\"oledAddress\":\"";
+  json += oled ? ("0x" + String(oledAddress(), HEX)) : "none";
+  json += "\",\"touchRaw\":";
+  json += touchRawValue();
+  json += ",\"touchBaseline\":";
+  json += touchBaselineValue();
+  json += ",\"touchDetected\":";
+  json += boolStr(isTouched);
+  json += ",\"trigPin\":";
+  json += ultrasonicTrigPin();
+  json += ",\"echoPin\":";
+  json += ultrasonicEchoPin();
+  json += ",\"distance\":";
+  json += distance;
+  json += ",\"maxDistance\":";
+  json += cfg::MAX_DISTANCE_CM;
+  json += ",\"temp\":";
+  json += String(dhtTemperature(), 1);
+  json += ",\"humidity\":";
+  json += String(dhtHumidity(), 1);
+  json += ",\"tempValid\":";
+  json += boolStr(dhtIsValid());
+  json += ",\"dhtStatus\":\"";
+  json += dhtStatusMessage();
+  json += "\",\"rawEcho\":";
+  json += ultrasonicLastEcho();
+  json += ",\"ip\":\"";
+  json += networkIp();
+  json += "\",\"uptime\":";
+  json += (millis() / 1000);
   json += "}";
 
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -75,19 +87,6 @@ void handleFlame() {
   handleStatus();
 }
 
-void handleFan() {
-  if (server.hasArg("set")) {
-    fanSet(server.arg("set").toInt() == 1);
-  } else if (server.hasArg("toggle")) {
-    fanToggle();
-  } else if (server.hasArg("pin")) {
-    fanSetPin(server.arg("pin").toInt());
-  } else if (server.hasArg("toggle_logic")) {
-    fanToggleLogic();
-  }
-  handleStatus();
-}
-
 void handleDoor() {
   if (server.hasArg("action")) {
     String action = server.arg("action");
@@ -97,8 +96,6 @@ void handleDoor() {
       doorOpenManual();
     } else if (action == "close") {
       doorCloseManual();
-    } else if (action == "test") {
-      doorTestSweep();
     } else if (action == "set_mode" && server.hasArg("mode")) {
       setTriggerMode(server.arg("mode").toInt());
     }
@@ -110,7 +107,7 @@ void handleUltrasonic() {
   if (server.hasArg("swap")) {
     ultrasonicSwapPins();
   } else if (server.hasArg("scan")) {
-    String res = ultrasonicScanPins(fanPin());
+    String res = ultrasonicScanPins();
     String json = "{\"result\":\"" + res + "\",\"trigPin\":" + String(ultrasonicTrigPin()) +
                   ",\"echoPin\":" + String(ultrasonicEchoPin()) + "}";
     server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -132,7 +129,6 @@ void webBegin() {
   });
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);
-  server.on("/api/fan", HTTP_GET, handleFan);
   server.on("/api/door", HTTP_GET, handleDoor);
   server.on("/api/ultrasonic", HTTP_GET, handleUltrasonic);
   server.begin();

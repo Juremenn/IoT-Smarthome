@@ -12,13 +12,15 @@ int flameValue = 0;
 unsigned long lastFlameRead = 0;
 unsigned long activeSince = 0;    // 0 = sinyal sedang tidak aktif
 unsigned long quietSince = 0;     // 0 = sinyal sedang aktif
-unsigned long ignoredPulses = 0;  // lonjakan singkat yang diabaikan (diagnostik)
-unsigned long lastIgnoredLog = 0;
+int activeStreak = 0;             // integrator anti-flicker api
 } // namespace
 
 void flameBegin() {
   pinMode(cfg::PIN_FLAME, INPUT);
   flameValue = digitalRead(cfg::PIN_FLAME);
+  Serial.printf("[API] Inisialisasi pin D%d: Nilai raw awal = %d (Mode: %s)\n",
+                cfg::PIN_FLAME, flameValue,
+                flameHigh ? "Active-HIGH (1=Api)" : "Active-LOW (0=Api, 1=Aman)");
 }
 
 void flameUpdate(unsigned long now) {
@@ -31,28 +33,31 @@ void flameUpdate(unsigned long now) {
   if (active) {
     if (activeSince == 0) activeSince = now;
     quietSince = 0;
+    if (activeStreak < 8) activeStreak++;
   } else {
-    if (activeSince != 0 && !flameNow && now - activeSince < cfg::FLAME_CONFIRM_MS) {
-      // Sinyal sempat aktif sebentar lalu hilang: noise atau pantulan cahaya, bukan api.
-      ignoredPulses++;
-      if (now - lastIgnoredLog >= 5000) {
-        lastIgnoredLog = now;
-        Serial.printf("[API] Lonjakan singkat diabaikan (%lu ms), total %lu\n", now - activeSince,
-                      ignoredPulses);
-      }
+    // Toleransi flicker: kurangi bertahap agar api korek yang bergetar tidak langsung ter-reset
+    if (activeStreak > 0) activeStreak--;
+    if (activeStreak == 0) {
+      activeSince = 0;
+      if (quietSince == 0) quietSince = now;
     }
-    activeSince = 0;
-    if (quietSince == 0) quietSince = now;
   }
 
   bool detected = flameNow;
-  if (!flameNow && activeSince != 0 && now - activeSince >= cfg::FLAME_CONFIRM_MS) detected = true;
-  if (flameNow && quietSince != 0 && now - quietSince >= cfg::FLAME_RELEASE_MS) detected = false;
+  // Deteksi cepat jika sinyal bertahan >= 40 ms atau streak >= 3 kali berturut-turut
+  if (!flameNow && ((activeSince != 0 && now - activeSince >= 40) || activeStreak >= 3)) {
+    detected = true;
+  }
+  // Pertahankan status bahaya minimal 1.2 detik setelah tenang agar alarm stabil
+  if (flameNow && quietSince != 0 && now - quietSince >= cfg::FLAME_RELEASE_MS) {
+    detected = false;
+  }
+
   if (detected && !flameNow) {
-    Serial.printf("\n[PERINGATAN API] Sensor 5-Way mendeteksi nyala api di D34! (Nilai Raw: %d)\n",
-                  flameValue);
+    Serial.printf("\n>>> [PERINGATAN API] Api terdeteksi di D34! (Raw: %d, Mode: %s)\n",
+                  flameValue, flameHigh ? "Active-HIGH" : "Active-LOW");
   } else if (!detected && flameNow) {
-    Serial.println("[STATUS API] Api padam / kondisi aman kembali.");
+    Serial.println(">>> [STATUS API] Api padam / kondisi aman kembali.");
   }
   flameNow = detected;
 }
@@ -65,9 +70,11 @@ void flameToggleLogic() {
   flameHigh = !flameHigh;
   activeSince = 0;
   quietSince = 0;
+  activeStreak = 0;
   flameNow = false;
-  Serial.printf("[FLAME] Logika sensor api 5-way diubah: %s\n",
-                flameHigh ? "Active-HIGH (1=Api, 0=Aman)" : "Active-LOW (0=Api, 1=Aman)");
+  Serial.printf("[FLAME] Logika sensor api diubah: %s (Raw saat ini: %d)\n",
+                flameHigh ? "Active-HIGH (1=Api, 0=Aman)" : "Active-LOW (0=Api, 1=Aman)",
+                digitalRead(cfg::PIN_FLAME));
 }
 
 // ==========================================
@@ -115,17 +122,16 @@ long lastEchoUs = 0;
 unsigned long lastPing = 0;
 
 bool ping(int t, int e, int &dist, long &duration) {
-  pinMode(t, OUTPUT);
+  // Pulsa trigger 10 µs (pinMode dikonfigurasi saat inisialisasi, BUKAN di dalam loop cepat)
   digitalWrite(t, LOW);
-  pinMode(e, INPUT);
   delayMicroseconds(4);
   digitalWrite(t, HIGH);
   delayMicroseconds(10);
   digitalWrite(t, LOW);
 
-  duration = pulseIn(e, HIGH, 15000);  // 15 ms timeout (~2.5 m)
-  if (duration >= 60 && duration <= 15000) {
-    dist = duration * 0.034 / 2;
+  duration = pulseIn(e, HIGH, 7000);  // 7 ms timeout (~1.2 meter, cepat & non-blocking)
+  if (duration >= 60 && duration <= 7000) {
+    dist = (int)(duration * 0.034f / 2.0f);
     return true;
   }
   dist = 0;
@@ -140,7 +146,19 @@ void ultrasonicBegin() {
 }
 
 void ultrasonicUpdate(unsigned long now, bool enabled) {
-  if (!enabled || now - lastPing < cfg::ULTRASONIC_PING_MS) return;
+  static bool wasEnabled = false;
+  if (!enabled) {
+    wasEnabled = false;
+    return;
+  }
+  if (!wasEnabled) {
+    pinMode(trigPin, OUTPUT);
+    digitalWrite(trigPin, LOW);
+    pinMode(echoPin, INPUT_PULLDOWN);
+    wasEnabled = true;
+  }
+
+  if (now - lastPing < cfg::ULTRASONIC_PING_MS) return;
   lastPing = now;
 
   int d = 0;
@@ -148,7 +166,7 @@ void ultrasonicUpdate(unsigned long now, bool enabled) {
   if (d > 0 && d <= 300) {
     distanceCm = d;
     missedEcho = 0;
-  } else if (++missedEcho >= 4) {
+  } else if (++missedEcho >= 3) {
     distanceCm = 0;
   }
 }
@@ -164,11 +182,11 @@ void ultrasonicSwapPins() {
   echoPin = tmp;
   pinMode(trigPin, OUTPUT);
   digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
+  pinMode(echoPin, INPUT_PULLDOWN);
   Serial.printf("[ULTRASONIK] Pin ditukar: Trig=D%d, Echo=D%d\n", trigPin, echoPin);
 }
 
-String ultrasonicScanPins(int fanPin) {
+String ultrasonicScanPins() {
   Serial.println("\n[ULTRASONIK] Memindai pin secara otomatis...");
   static const int pairs[][2] = {{4, 5},   {5, 4},   {5, 18},  {18, 5},  {18, 19}, {19, 18},
                                  {4, 18},  {18, 4},  {5, 19},  {19, 5},  {23, 19}, {19, 23},
@@ -177,8 +195,8 @@ String ultrasonicScanPins(int fanPin) {
   for (const auto &p : pairs) {
     int t = p[0];
     int e = p[1];
-    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == fanPin || t == cfg::PIN_DHT) continue;
-    if (e == 13 || e == 12 || e == 21 || e == 22 || e == fanPin || e == cfg::PIN_DHT) continue;
+    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == cfg::PIN_DHT) continue;
+    if (e == 13 || e == 12 || e == 21 || e == 22 || e == cfg::PIN_DHT) continue;
 
     for (int retry = 0; retry < 2; retry++) {
       int dist = 0;
@@ -200,9 +218,12 @@ String ultrasonicScanPins(int fanPin) {
 
 // ==========================================
 // SENSOR SUHU & KELEMBABAN (DHT11 / DHT22)
-// Driver ESP32 dengan microsecond-timing & portENTER_CRITICAL
+// Menggunakan library resmi Adafruit DHT
 // ==========================================
+#include <DHT.h>
+
 namespace {
+DHT dht(cfg::PIN_DHT, DHT11, 15);
 float currentTemp = 0.0f;
 float currentHumidity = 0.0f;
 float lastGoodTemp = 0.0f;
@@ -210,126 +231,24 @@ float lastGoodHum = 0.0f;
 bool tempValid = false;
 int consecutiveFails = 0;
 unsigned long lastDhtRead = 0;
-unsigned long startPulseBegin = 0;
-enum class DhtFsmState { IDLE, PULSING_START };
-DhtFsmState dhtState = DhtFsmState::IDLE;
 const char *statusStr = "Menunggu sensor...";
+} // namespace
 
-enum class DhtStatus {
-  OK,
-  STUCK_LOW,
-  STUCK_HIGH_NO_RESPONSE,
-  TIMEOUT_HANDSHAKE,
-  TIMEOUT_DATA,
-  CHECKSUM_ERROR,
-  OUT_OF_RANGE
-};
-
-DhtStatus readDhtFinish(float &outTemp, float &outHum) {
-  portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-  portENTER_CRITICAL(&mux);
-
-  // Lepaskan garis ke INPUT_PULLUP (tarik ke HIGH)
+void dhtBegin() {
   pinMode(cfg::PIN_DHT, INPUT_PULLUP);
-  delayMicroseconds(30);
-
-  // 1. Tangkap respon sensor: sensor harus menarik ke LOW dalam waktu ~20-50 µs
-  uint32_t t = micros();
-  while (digitalRead(cfg::PIN_DHT) == HIGH) {
-    if (micros() - t > 100) {
-      portEXIT_CRITICAL(&mux);
-      return DhtStatus::STUCK_HIGH_NO_RESPONSE;
-    }
-  }
-
-  // 2. Pulsa respon LOW dari sensor (~80 µs)
-  t = micros();
-  while (digitalRead(cfg::PIN_DHT) == LOW) {
-    if (micros() - t > 120) {
-      portEXIT_CRITICAL(&mux);
-      return DhtStatus::TIMEOUT_HANDSHAKE;
-    }
-  }
-
-  // 3. Pulsa respon HIGH dari sensor (~80 µs)
-  t = micros();
-  while (digitalRead(cfg::PIN_DHT) == HIGH) {
-    if (micros() - t > 120) {
-      portEXIT_CRITICAL(&mux);
-      return DhtStatus::TIMEOUT_HANDSHAKE;
-    }
-  }
-
-  // 4. Baca 40 bit data (5 byte)
-  uint8_t data[5] = {0, 0, 0, 0, 0};
-  for (int i = 0; i < 40; i++) {
-    // Pulsa LOW 50 µs pembuka bit
-    t = micros();
-    while (digitalRead(cfg::PIN_DHT) == LOW) {
-      if (micros() - t > 80) {
-        portEXIT_CRITICAL(&mux);
-        return DhtStatus::TIMEOUT_DATA;
-      }
-    }
-
-    // Ukur durasi pulsa HIGH
-    t = micros();
-    while (digitalRead(cfg::PIN_DHT) == HIGH) {
-      if (micros() - t > 120) {
-        portEXIT_CRITICAL(&mux);
-        return DhtStatus::TIMEOUT_DATA;
-      }
-    }
-    uint32_t highDur = micros() - t;
-
-    data[i / 8] <<= 1;
-    // Logika 1: pulsa HIGH ~70 µs (> 40 µs). Logika 0: pulsa HIGH ~26-28 µs (< 40 µs).
-    if (highDur > 40) {
-      data[i / 8] |= 1;
-    }
-  }
-
-  portEXIT_CRITICAL(&mux);
-
-  // 5. Verifikasi Checksum
-  uint8_t sum = (data[0] + data[1] + data[2] + data[3]) & 0xFF;
-  if (data[4] != sum) {
-    return DhtStatus::CHECKSUM_ERROR;
-  }
-
-  // 6. Parsing nilai suhu dan kelembaban
-  float t11 = data[2] + (data[3] & 0x7F) * 0.1f;
-  if (data[3] & 0x80) t11 = -t11;
-  float h11 = data[0] + data[1] * 0.1f;
-
-  if (t11 >= 0.0f && t11 <= 60.0f && h11 >= 15.0f && h11 <= 95.0f) {
-    outTemp = t11;
-    outHum = h11;
-    return DhtStatus::OK;
-  }
-
-  // Coba format 16-bit DHT22 (jika modul yang dipasang DHT22/AM2302)
-  float t22 = (((data[2] & 0x7F) << 8) | data[3]) * 0.1f;
-  if (data[2] & 0x80) t22 = -t22;
-  float h22 = ((data[0] << 8) | data[1]) * 0.1f;
-
-  if (t22 >= -20.0f && t22 <= 70.0f && h22 >= 0.0f && h22 <= 100.0f) {
-    outTemp = t22;
-    outHum = h22;
-    return DhtStatus::OK;
-  }
-
-  if (t11 > 0 || h11 > 0) {
-    outTemp = t11;
-    outHum = h11;
-    return DhtStatus::OK;
-  }
-
-  return DhtStatus::OUT_OF_RANGE;
+  dht.begin();
+  Serial.printf("[DHT11] Driver resmi Adafruit aktif di GPIO D%d\n", cfg::PIN_DHT);
 }
 
-void applyDhtResult(DhtStatus res, float t, float h) {
-  if (res == DhtStatus::OK) {
+void dhtUpdate(unsigned long now) {
+  // Sensor DHT11 memerlukan jeda minimal sesuai konfigurasi
+  if (now - lastDhtRead < cfg::DHT_READ_MS) return;
+  lastDhtRead = now;
+
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+
+  if (!isnan(t) && !isnan(h) && t >= -10.0f && t <= 80.0f && h >= 0.0f && h <= 100.0f) {
     currentTemp = t;
     currentHumidity = h;
     lastGoodTemp = t;
@@ -339,27 +258,7 @@ void applyDhtResult(DhtStatus res, float t, float h) {
     statusStr = "OK";
   } else {
     consecutiveFails++;
-    switch (res) {
-      case DhtStatus::STUCK_LOW:
-        statusStr = "Pin D27 korslet ke GND";
-        break;
-      case DhtStatus::STUCK_HIGH_NO_RESPONSE:
-        statusStr = "Pin D27 tidak merespon (cek kabel Data/VCC/GND)";
-        break;
-      case DhtStatus::TIMEOUT_HANDSHAKE:
-        statusStr = "Timeout handshake awal DHT11";
-        break;
-      case DhtStatus::TIMEOUT_DATA:
-        statusStr = "Timeout transmisi bit DHT11";
-        break;
-      case DhtStatus::CHECKSUM_ERROR:
-        statusStr = "Checksum error (gangguan sinyal)";
-        break;
-      default:
-        statusStr = "Nilai suhu di luar rentang wajar";
-        break;
-    }
-
+    statusStr = "Tidak terdeteksi (cek kabel D27/VCC/GND)";
     if (consecutiveFails < cfg::DHT_MAX_CONSECUTIVE_FAILS && lastGoodTemp > 0.0f) {
       tempValid = true;
       currentTemp = lastGoodTemp;
@@ -369,44 +268,6 @@ void applyDhtResult(DhtStatus res, float t, float h) {
       currentTemp = 0.0f;
       currentHumidity = 0.0f;
     }
-  }
-}
-} // namespace
-
-void dhtBegin() {
-  pinMode(cfg::PIN_DHT, INPUT_PULLUP);
-  Serial.printf("[DHT11] Driver hardware terkalibrasi di GPIO D%d\n", cfg::PIN_DHT);
-}
-
-void dhtUpdate(unsigned long now) {
-  if (dhtState == DhtFsmState::IDLE) {
-    if (now - lastDhtRead < cfg::DHT_READ_MS) return;
-
-    pinMode(cfg::PIN_DHT, INPUT_PULLUP);
-    delayMicroseconds(50);
-    if (digitalRead(cfg::PIN_DHT) == LOW) {
-      applyDhtResult(DhtStatus::STUCK_LOW, 0.0f, 0.0f);
-      lastDhtRead = now;
-      return;
-    }
-
-    // Kirim sinyal start LOW secara non-blocking
-    pinMode(cfg::PIN_DHT, OUTPUT);
-    digitalWrite(cfg::PIN_DHT, LOW);
-    startPulseBegin = now;
-    dhtState = DhtFsmState::PULSING_START;
-    return;
-  }
-
-  if (dhtState == DhtFsmState::PULSING_START) {
-    if (now - startPulseBegin < 20) return; // tunggu 20 ms secara non-blocking
-
-    float t = 0.0f;
-    float h = 0.0f;
-    DhtStatus res = readDhtFinish(t, h);
-    applyDhtResult(res, t, h);
-    lastDhtRead = now;
-    dhtState = DhtFsmState::IDLE;
   }
 }
 

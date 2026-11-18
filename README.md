@@ -1,5 +1,5 @@
 # 🏡 IoT Smart Home - Rumah Joglo
-### Pintu Otomatis Servo (Gerak Halus), Sensor Api, Sensor Jarak, Sensor Sentuh, Kipas & Dashboard Web
+### Pintu Otomatis Servo (Gerak Halus), Sensor Api, Sensor Jarak, Sensor Sentuh, Sensor Suhu DHT11 & Dashboard Web
 
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Project-orange?logo=platformio)](https://platformio.org/)
 [![ESP32](https://img.shields.io/badge/Board-ESP32%20DevKit%20V1-red?logo=espressif)](https://www.espressif.com/)
@@ -21,8 +21,8 @@ Smart home miniatur Rumah Joglo berbasis **ESP32**. Dashboard web disajikan lang
   - **Ultrasonik (HC-SR04):** objek ≤ 20 cm membuka pintu. Selama objek masih ada, pintu tetap terbuka; kalau objek muncul saat pintu menutup, pintu berbalik membuka.
   - **Manual:** hanya lewat tombol web.
 - **Detektor api:** status Aman/Bahaya, nilai pin, logika Active-HIGH/LOW yang bisa dibalik.
-- **Kipas (D32):** nyala/mati dan balik logika relay dari web.
-- **OLED SSD1306 (opsional):** dideteksi otomatis lewat I2C (hot-plug).
+- **Sensor Suhu & Kelembaban (DHT11):** pembacaan suhu dan kelembaban aktual.
+- **OLED SSD1306 (opsional):** dideteksi otomatis lewat I2C (hot-plug) dengan animasi wayang.
 - **WiFi:** mencoba WiFi rumah, kalau gagal menjadi hotspot `RumahJoglo-SmartHome` di `http://192.168.4.1`.
 
 ---
@@ -38,7 +38,8 @@ Smart home miniatur Rumah Joglo berbasis **ESP32**. Dashboard web disajikan lang
 | Sensor sentuh | Ujung kabel jumper | **D4** (Touch0) |
 | HC-SR04 | Trig / Echo | **D4 / D5** (bisa ditukar atau dipindai dari web) |
 | | VCC / GND | 5V / GND |
-| Kipas 5V via relay/driver | IN | **D32** |
+| Sensor DHT11 | Data | **D27** |
+| | VCC / GND | 3V3 / GND |
 | OLED SSD1306 128x64 (opsional) | SDA / SCL | D21 / D22 |
 
 > Catatan: sensor sentuh dan Trig HC-SR04 sama-sama memakai D4. Firmware hanya membaca sentuh di mode Sentuh dan ultrasonik di mode Ultrasonik, tapi kalau keduanya dipasang bersamaan sinyalnya bisa saling ganggu. Pindahkan HC-SR04 dengan tombol **Pindai Pin Otomatis** di dashboard.
@@ -52,16 +53,13 @@ Smart home miniatur Rumah Joglo berbasis **ESP32**. Dashboard web disajikan lang
 ```
 include/
   config.h            pin, sudut servo, waktu gerak, ambang sensor
-  secrets.example.h   contoh kredensial WiFi (masuk git)
-  secrets.h           kredensial WiFi asli (TIDAK masuk git)
 src/
   main.cpp            setup() dan loop() saja
   door.*              servo pintu, gerak halus, siklus buka-tahan-tutup
-  sensors.*           sensor api, sentuh, ultrasonik
+  sensors.*           sensor api, sentuh, ultrasonik, suhu DHT11
   automation.*        mode pemicu otomatis
-  fan.*               kipas / relay
-  oled.*              layar SSD1306
-  network.*           WiFi station / access point
+  oled.*              layar SSD1306 (animasi wayang)
+  app_network.*       Access Point (Hotspot mandiri)
   web_server.*        route HTTP
   web/index_html.h    HTML dashboard   (PROGMEM, route /)
   web/style_css.h     CSS dashboard    (PROGMEM, route /style.css)
@@ -75,20 +73,19 @@ src/
 | `/api/status` | |
 | `/api/door` | `action=auto` / `open` / `close`, atau `action=set_mode&mode=0..3` |
 | `/api/flame` | `toggle_logic=1` |
-| `/api/fan` | `set=0/1`, `toggle`, `pin=N`, `toggle_logic` |
 | `/api/ultrasonic` | `swap=1`, atau `scan=1` (balas `{result, trigPin, echoPin}`) |
 
 ---
 
 ## 📱 Build & Upload
 
-1. Salin `include/secrets.example.h` menjadi `include/secrets.h`, lalu isi SSID dan password WiFi.
-2. Upload:
+1. Hubungkan ESP32 ke komputer melalui kabel USB.
+2. Upload firmware via PlatformIO:
    ```bash
    pio run --target upload
    pio device monitor
    ```
-3. Buka IP yang tampil di Serial Monitor atau OLED dari browser HP/laptop.
+3. Sambungkan HP/Laptop ke WiFi **`RumahJoglo-SmartHome`** lalu buka **`http://192.168.4.1`** di browser.
 
 ---
 

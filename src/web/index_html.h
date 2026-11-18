@@ -58,6 +58,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
           <span class="t-val" id="flameVal">Memuat</span>
           <span class="t-sub" id="flameSub"></span>
           <button type="button" class="btn alarm-btn" id="bAlarm" aria-label="Matikan alarm" hidden>Matikan</button>
+          <button type="button" class="btn flame-logic-btn" id="bFlameTile">Balik Logika</button>
         </div>
       </div>
 

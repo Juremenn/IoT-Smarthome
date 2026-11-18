@@ -59,7 +59,7 @@ function setOnline(on) {
 }
 
 const evacuating = d => !!d && d.doorTriggerMode === 2 && d.flame;
-const CONTROLS = ['bAuto', 'bOpen', 'bClose', 'modeHit', 'bFlame', 'bSwap', 'bScan'];
+const CONTROLS = ['bAuto', 'bOpen', 'bClose', 'modeHit', 'bFlame', 'bFlameTile', 'bSwap', 'bScan'];
 function sync() {
   for (const id of CONTROLS) {
     let off = !online || !last || busy.has(id);
@@ -144,7 +144,8 @@ function render(d) {
     const t = $('tFlame'); t.classList.remove('pulse'); void t.offsetWidth; t.classList.add('pulse');
   }
   text('flameVal', d.flame ? 'Bahaya' : 'Aman');
-  text('flameSub', 'D34: ' + d.flameRaw);
+  text('flameSub', 'D34: ' + d.flameRaw + ' (' + (d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW') + ')');
+  text('bFlameTile', d.flameActiveHigh ? 'Ganti: Active-LOW' : 'Ganti: Active-HIGH');
   alarmUpdate(d.flame);
 
   // Jarak
@@ -195,6 +196,7 @@ document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('c
   act('modeHit', '/api/door?action=set_mode&mode=' + r.value, 'Pemicu: ' + MODE_NAME[r.value], 'tMode');
 }));
 $('bFlame').addEventListener('click', () => act('bFlame', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW')));
+$('bFlameTile').addEventListener('click', () => act('bFlameTile', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH (1=Api)' : 'Active-LOW (0=Api)'), 'tFlame'));
 $('bSwap').addEventListener('click', () => act('bSwap', '/api/ultrasonic?swap=1', d => 'Trig D' + d.trigPin + ', Echo D' + d.echoPin));
 $('bScan').addEventListener('click', () => act('bScan', '/api/ultrasonic?scan=1', d => d.result));
 
