@@ -14,6 +14,7 @@ void doorCloseManual();  // diabaikan selama evakuasi api
 void doorSetEvacuation(bool active);
 
 DoorPhase doorPhase();
+float doorOpenFraction();  // 0.0 = tertutup penuh, 1.0 = terbuka penuh
 bool doorIsManualOpen();
 bool doorIsAutoCycle();
 bool doorIsEvacuating();

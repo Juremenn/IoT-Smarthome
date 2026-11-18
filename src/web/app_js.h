@@ -54,12 +54,12 @@ function setOnline(on) {
   flag('conn', 'bad', !on);
   if (!on) text('connText', 'Terputus');
   put('body:off', !on, x => document.body.classList.toggle('offline', x));
-  if (!on) ['doorSub', 'modeSub', 'flameSub', 'distSub', 'tempSub'].forEach(id => text(id, 'Offline'));
+  if (!on) ['doorSub', 'modeSub', 'flameSub', 'distSub', 'tempSub', 'fanSub'].forEach(id => text(id, 'Offline'));
   sync();
 }
 
 const evacuating = d => !!d && d.doorTriggerMode === 2 && d.flame;
-const CONTROLS = ['bAuto', 'bOpen', 'bClose', 'modeHit', 'bFlame', 'bFlameTile', 'bSwap', 'bScan'];
+const CONTROLS = ['bAuto', 'bOpen', 'bClose', 'modeHit', 'bFlame', 'bFlameTile', 'bFanTile', 'bFanTileLogic', 'bFanLogic', 'bSwap', 'bScan'];
 function sync() {
   for (const id of CONTROLS) {
     let off = !online || !last || busy.has(id);
@@ -162,8 +162,17 @@ function render(d) {
   text('tempSub', hasTemp ? ('Lembab: ' + d.humidity.toFixed(0) + '%') : (d.dhtStatus || 'Menunggu sensor...'));
   put('tempFill', hasTemp ? Math.min(Math.max(d.temp, 0), 50) : 0, x => { $('tempFill').style.width = (x / 50 * 100) + '%'; });
 
+  // Kipas (Relay D23)
+  flag('tFan', 'on', !!d.fan);
+  text('fanVal', d.fan ? 'Menyala' : 'Mati');
+  text('fanSub', 'D' + (d.fanPin || 23) + ' (' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH') + ')');
+  text('bFanTile', d.fan ? 'Matikan' : 'Nyalakan');
+  text('bFanTileLogic', d.fanActiveLow ? 'Ganti: Active-HIGH' : 'Ganti: Active-LOW');
+  attr('bFanTile', 'aria-label', 'Kipas, ' + (d.fan ? 'Menyala' : 'Mati') + '. Tekan untuk ' + (d.fan ? 'mematikan' : 'menyalakan'));
+
   // Pengaturan
   text('sFlame', d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW');
+  text('sFan', d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH');
   text('sUs', 'Trig D' + d.trigPin + ', Echo D' + d.echoPin);
 
   // Info
@@ -176,6 +185,7 @@ function render(d) {
   text('iMax', '≤ ' + d.maxDistance + ' cm');
   text('iTemp', hasTemp ? (d.temp.toFixed(1) + ' °C') : (d.dhtStatus || 'Tidak terbaca'));
   text('iHum', hasTemp ? (d.humidity.toFixed(0) + ' %') : (d.dhtStatus || 'Tidak terbaca'));
+  text('iFan', (d.fan ? 'Menyala' : 'Mati') + ' (' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH') + ')');
 
   sync();
 }
@@ -197,6 +207,9 @@ document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('c
 }));
 $('bFlame').addEventListener('click', () => act('bFlame', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW')));
 $('bFlameTile').addEventListener('click', () => act('bFlameTile', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH (1=Api)' : 'Active-LOW (0=Api)'), 'tFlame'));
+$('bFanTile').addEventListener('click', () => act('bFanTile', '/api/fan?toggle=1', d => d.fan ? 'Kipas dinyalakan' : 'Kipas dimatikan', 'tFan'));
+$('bFanTileLogic').addEventListener('click', () => act('bFanTileLogic', '/api/fan?toggle_logic=1', d => 'Logika relay kipas: ' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH'), 'tFan'));
+$('bFanLogic').addEventListener('click', () => act('bFanLogic', '/api/fan?toggle_logic=1', d => 'Logika relay kipas: ' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH')));
 $('bSwap').addEventListener('click', () => act('bSwap', '/api/ultrasonic?swap=1', d => 'Trig D' + d.trigPin + ', Echo D' + d.echoPin));
 $('bScan').addEventListener('click', () => act('bScan', '/api/ultrasonic?scan=1', d => d.result));
 

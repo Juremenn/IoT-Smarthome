@@ -47,6 +47,13 @@ svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.5;stroke
 #tFlame{--tint:#FCE6EC;--deep:#F7CFDA;--on:#F2A9BD;--ink:#9B2C4A}
 #tDist{--tint:#E2F1FB;--deep:#C8E4F6;--on:#9ACDEE;--ink:#1E5F8C}
 #tTemp{--tint:#E0F4F2;--deep:#C4ECE8;--on:#82D5CC;--ink:#12635B}
+#tFan{--tint:#E6F5E9;--deep:#CBEAD2;--on:#8ED49E;--ink:#1B6B30}
+#tFan.on .ic svg{animation:spin 1.1s linear infinite}
+.tile .fan-toggle-btn{margin-top:10px;width:100%;min-height:36px;padding:0 12px;background:#fff;border:1px solid rgba(27,107,48,.25);color:var(--ink);font-weight:600}
+.tile .fan-toggle-btn:hover:not(:disabled){background:#F2FBF4}
+.tile.on .fan-toggle-btn{background:var(--ink);border-color:var(--ink);color:#fff}
+.tile .fan-logic-btn{margin-top:6px;font-size:11px;min-height:28px;padding:2px 8px;border-radius:6px;background:#fff;border:1px solid rgba(27,107,48,.25);color:var(--ink)}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media (hover:hover){button.hit:hover:not(:disabled){background:var(--deep)}}
 button.hit:active:not(:disabled) .ic{transform:scale(.94)}
 .t-title{align-self:flex-start;font-size:12px;color:var(--muted)}

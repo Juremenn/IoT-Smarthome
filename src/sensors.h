@@ -11,6 +11,7 @@ void flameToggleLogic();
 
 // ---- Sensor sentuh (Touch0, D4) ----
 void touchBegin();
+void touchOnModeEnter();
 void touchUpdate(unsigned long now, bool enabled);
 int touchRawValue();
 int touchBaselineValue();

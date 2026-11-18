@@ -5,6 +5,7 @@
 #include "automation.h"
 #include "config.h"
 #include "door.h"
+#include "fan.h"
 #include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
@@ -26,13 +27,19 @@ void handleStatus() {
   bool oled = oledIsActive();
 
   String json;
-  json.reserve(320);
+  json.reserve(384);
   json += "{\"flame\":";
   json += boolStr(flameDetected());
   json += ",\"flameRaw\":";
   json += flameRaw();
   json += ",\"flameActiveHigh\":";
   json += boolStr(flameActiveHigh());
+  json += ",\"fan\":";
+  json += boolStr(fanIsOn());
+  json += ",\"fanPin\":";
+  json += cfg::PIN_FAN;
+  json += ",\"fanActiveLow\":";
+  json += boolStr(fanActiveLow());
   json += ",\"door\":\"";
   json += doorStatusText();
   json += "\",\"doorTriggerMode\":";
@@ -78,12 +85,24 @@ void handleStatus() {
 
 void sendAsset(const char *type, const char *body) {
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Cache-Control", "no-cache");
+  server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   server.send_P(200, type, body);
 }
 
 void handleFlame() {
   if (server.hasArg("toggle_logic")) flameToggleLogic();
+  handleStatus();
+}
+
+void handleFan() {
+  if (server.hasArg("toggle")) {
+    fanToggle();
+  } else if (server.hasArg("state")) {
+    String st = server.arg("state");
+    fanSetState(st == "on" || st == "1");
+  } else if (server.hasArg("toggle_logic")) {
+    fanToggleLogic();
+  }
   handleStatus();
 }
 
@@ -129,6 +148,7 @@ void webBegin() {
   });
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);
+  server.on("/api/fan", HTTP_GET, handleFan);
   server.on("/api/door", HTTP_GET, handleDoor);
   server.on("/api/ultrasonic", HTTP_GET, handleUltrasonic);
   server.begin();

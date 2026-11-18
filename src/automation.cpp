@@ -7,14 +7,19 @@
 #include "sensors.h"
 
 namespace {
-int mode = MODE_TOUCH;
+int mode = MODE_ULTRASONIC;
 bool wasTriggered = false;  // untuk log satu kali per pemicuan
 } // namespace
 
 int triggerMode() { return mode; }
 
 void setTriggerMode(int m) {
+  if (m < MODE_MANUAL || m > MODE_ULTRASONIC || m == mode) return;
   mode = m;
+  wasTriggered = false;
+  if (mode == MODE_TOUCH) {
+    touchOnModeEnter();
+  }
   Serial.printf("[PINTU] Mode pemicu buka diubah ke: %d\n", mode);
 }
 

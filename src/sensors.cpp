@@ -10,8 +10,10 @@ bool flameHigh = cfg::FLAME_ACTIVE_HIGH_DEFAULT;  // true: 1 = api, 0 = aman
 bool flameNow = false;
 int flameValue = 0;
 unsigned long lastFlameRead = 0;
-unsigned long activeSince = 0;    // 0 = sinyal sedang tidak aktif
-unsigned long quietSince = 0;     // 0 = sinyal sedang aktif
+unsigned long activeSince = 0;
+unsigned long quietSince = 0;
+bool activeTracking = false;
+bool quietTracking = false;
 int activeStreak = 0;             // integrator anti-flicker api
 } // namespace
 
@@ -31,25 +33,31 @@ void flameUpdate(unsigned long now) {
   bool active = flameHigh ? (flameValue == HIGH) : (flameValue == LOW);
 
   if (active) {
-    if (activeSince == 0) activeSince = now;
-    quietSince = 0;
+    if (!activeTracking) {
+      activeSince = now;
+      activeTracking = true;
+    }
+    quietTracking = false;
     if (activeStreak < 8) activeStreak++;
   } else {
     // Toleransi flicker: kurangi bertahap agar api korek yang bergetar tidak langsung ter-reset
     if (activeStreak > 0) activeStreak--;
     if (activeStreak == 0) {
-      activeSince = 0;
-      if (quietSince == 0) quietSince = now;
+      activeTracking = false;
+      if (!quietTracking) {
+        quietSince = now;
+        quietTracking = true;
+      }
     }
   }
 
   bool detected = flameNow;
-  // Deteksi cepat jika sinyal bertahan >= 40 ms atau streak >= 3 kali berturut-turut
-  if (!flameNow && ((activeSince != 0 && now - activeSince >= 40) || activeStreak >= 3)) {
+  // Deteksi cepat jika sinyal bertahan >= FLAME_CONFIRM_MS atau streak >= 2 kali berturut-turut
+  if (!flameNow && ((activeTracking && now - activeSince >= cfg::FLAME_CONFIRM_MS) || activeStreak >= 2)) {
     detected = true;
   }
-  // Pertahankan status bahaya minimal 1.2 detik setelah tenang agar alarm stabil
-  if (flameNow && quietSince != 0 && now - quietSince >= cfg::FLAME_RELEASE_MS) {
+  // Pertahankan status bahaya minimal FLAME_RELEASE_MS setelah tenang agar alarm stabil
+  if (flameNow && quietTracking && now - quietSince >= cfg::FLAME_RELEASE_MS) {
     detected = false;
   }
 
@@ -68,8 +76,8 @@ bool flameActiveHigh() { return flameHigh; }
 
 void flameToggleLogic() {
   flameHigh = !flameHigh;
-  activeSince = 0;
-  quietSince = 0;
+  activeTracking = false;
+  quietTracking = false;
   activeStreak = 0;
   flameNow = false;
   Serial.printf("[FLAME] Logika sensor api diubah: %s (Raw saat ini: %d)\n",
@@ -84,6 +92,20 @@ namespace {
 int touchRaw = cfg::TOUCH_BASELINE_FALLBACK;
 int touchBaseline = cfg::TOUCH_BASELINE_FALLBACK;
 unsigned long lastTouchRead = 0;
+unsigned long lastBaselineAdapt = 0;
+
+int median3(int a, int b, int c) {
+  if (a > b) { int t = a; a = b; b = t; }
+  if (b > c) { int t = b; b = c; c = t; }
+  if (a > b) { int t = a; a = b; b = t; }
+  return b;
+}
+
+int touchThreshold() {
+  int pct = (touchBaseline * 4) / 100;  // 4% dari baseline (~55 di baseline 1380)
+  int th = pct < cfg::TOUCH_DELTA_THRESHOLD ? pct : cfg::TOUCH_DELTA_THRESHOLD;
+  return th < 15 ? 15 : th;
+}
 } // namespace
 
 void touchBegin() {
@@ -94,20 +116,50 @@ void touchBegin() {
   }
   touchBaseline = sum / 5;
   if (touchBaseline <= 0) touchBaseline = cfg::TOUCH_BASELINE_FALLBACK;
-  Serial.printf("[TOUCH] Baseline Pin D4: %d\n", touchBaseline);
+  touchRaw = touchBaseline;
+  Serial.printf("[TOUCH] Baseline Pin D4: %d (Threshold: %d)\n", touchBaseline, touchThreshold());
+}
+
+void touchOnModeEnter() {
+  // Re-attach Touch0 setelah pin D4 mungkin dipakai mode lain, lalu segarkan baseline bila valid
+  int a = touchRead(cfg::PIN_TOUCH);
+  int b = touchRead(cfg::PIN_TOUCH);
+  int c = touchRead(cfg::PIN_TOUCH);
+  int med = median3(a, b, c);
+  if (med > 20) {
+    touchBaseline = med;
+    touchRaw = med;
+  } else {
+    touchRaw = touchBaseline;
+  }
+  lastTouchRead = millis();
+  lastBaselineAdapt = lastTouchRead;
 }
 
 void touchUpdate(unsigned long now, bool enabled) {
   if (!enabled || now - lastTouchRead < cfg::TOUCH_READ_MS) return;
   lastTouchRead = now;
-  touchRaw = touchRead(cfg::PIN_TOUCH);
+
+  int a = touchRead(cfg::PIN_TOUCH);
+  int b = touchRead(cfg::PIN_TOUCH);
+  int c = touchRead(cfg::PIN_TOUCH);
+  touchRaw = median3(a, b, c);
+
+  // Adaptasi baseline sangat lambat saat kondisi diam agar tahan perubahan suhu/kelembaban
+  int delta = abs(touchRaw - touchBaseline);
+  int th = touchThreshold();
+  if (touchRaw > 20 && delta < (th / 2) && now - lastBaselineAdapt >= 1000) {
+    lastBaselineAdapt = now;
+    if (touchRaw > touchBaseline) touchBaseline++;
+    else if (touchRaw < touchBaseline) touchBaseline--;
+  }
 }
 
 int touchRawValue() { return touchRaw; }
 int touchBaselineValue() { return touchBaseline; }
 
 bool touchIsTouched() {
-  return abs(touchRaw - touchBaseline) >= cfg::TOUCH_DELTA_THRESHOLD && touchRaw > 0;
+  return touchRaw > 0 && abs(touchRaw - touchBaseline) >= touchThreshold();
 }
 
 // ==========================================
@@ -122,16 +174,25 @@ long lastEchoUs = 0;
 unsigned long lastPing = 0;
 
 bool ping(int t, int e, int &dist, long &duration) {
-  // Pulsa trigger 10 µs (pinMode dikonfigurasi saat inisialisasi, BUKAN di dalam loop cepat)
+  // Anti-freeze: bebaskan pin Echo jika tertahan HIGH dari ping yang terlewat sebelumnya
+  if (digitalRead(e) == HIGH) {
+    pinMode(e, OUTPUT);
+    digitalWrite(e, LOW);
+    delayMicroseconds(5);
+    pinMode(e, INPUT_PULLDOWN);
+  }
+
+  // Pulsa trigger 10 µs (pinMode dikonfigurasi saat inisialisasi / pergantian mode)
   digitalWrite(t, LOW);
   delayMicroseconds(4);
   digitalWrite(t, HIGH);
   delayMicroseconds(10);
   digitalWrite(t, LOW);
 
-  duration = pulseIn(e, HIGH, 7000);  // 7 ms timeout (~1.2 meter, cepat & non-blocking)
-  if (duration >= 60 && duration <= 7000) {
+  duration = pulseIn(e, HIGH, 25000);  // 25 ms timeout (~4.2 meter, cakup pantulan ruangan agar echo tidak terpotong)
+  if (duration >= 25 && duration <= 25000) {
     dist = (int)(duration * 0.034f / 2.0f);
+    if (dist < 1) dist = 1;
     return true;
   }
   dist = 0;
@@ -163,7 +224,7 @@ void ultrasonicUpdate(unsigned long now, bool enabled) {
 
   int d = 0;
   ping(trigPin, echoPin, d, lastEchoUs);
-  if (d > 0 && d <= 300) {
+  if (d > 0 && d <= 400) {
     distanceCm = d;
     missedEcho = 0;
   } else if (++missedEcho >= 3) {
@@ -195,8 +256,13 @@ String ultrasonicScanPins() {
   for (const auto &p : pairs) {
     int t = p[0];
     int e = p[1];
-    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == cfg::PIN_DHT) continue;
-    if (e == 13 || e == 12 || e == 21 || e == 22 || e == cfg::PIN_DHT) continue;
+    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == cfg::PIN_DHT || t == cfg::PIN_FAN) continue;
+    if (e == 13 || e == 12 || e == 21 || e == 22 || e == cfg::PIN_DHT || e == cfg::PIN_FAN) continue;
+
+    pinMode(t, OUTPUT);
+    digitalWrite(t, LOW);
+    pinMode(e, INPUT_PULLDOWN);
+    delayMicroseconds(20);
 
     for (int retry = 0; retry < 2; retry++) {
       int dist = 0;
@@ -212,6 +278,11 @@ String ultrasonicScanPins() {
       delay(15);
     }
   }
+
+  // Kembalikan pinMode aktif agar pin tidak tertinggal dalam kondisi salah
+  pinMode(trigPin, OUTPUT);
+  digitalWrite(trigPin, LOW);
+  pinMode(echoPin, INPUT_PULLDOWN);
   Serial.println("[ULTRASONIK] Modul ultrasonik belum merespon.");
   return "Belum merespon (menunggu sensor baru)";
 }
@@ -223,11 +294,12 @@ String ultrasonicScanPins() {
 #include <DHT.h>
 
 namespace {
-DHT dht(cfg::PIN_DHT, DHT11, 15);
+DHT dht(cfg::PIN_DHT, DHT11);
 float currentTemp = 0.0f;
 float currentHumidity = 0.0f;
 float lastGoodTemp = 0.0f;
 float lastGoodHum = 0.0f;
+bool hasGoodReading = false;
 bool tempValid = false;
 int consecutiveFails = 0;
 unsigned long lastDhtRead = 0;
@@ -241,8 +313,11 @@ void dhtBegin() {
 }
 
 void dhtUpdate(unsigned long now) {
-  // Sensor DHT11 memerlukan jeda minimal sesuai konfigurasi
-  if (now - lastDhtRead < cfg::DHT_READ_MS) return;
+  // Beri waktu 1.5 detik awal setelah boot agar DHT11 stabil, dan hormati jeda >2000ms Adafruit
+  if (now < 1500) return;
+  if (hasGoodReading || consecutiveFails > 0) {
+    if (now - lastDhtRead < cfg::DHT_READ_MS) return;
+  }
   lastDhtRead = now;
 
   float t = dht.readTemperature();
@@ -253,13 +328,14 @@ void dhtUpdate(unsigned long now) {
     currentHumidity = h;
     lastGoodTemp = t;
     lastGoodHum = h;
+    hasGoodReading = true;
     tempValid = true;
     consecutiveFails = 0;
     statusStr = "OK";
   } else {
     consecutiveFails++;
     statusStr = "Tidak terdeteksi (cek kabel D27/VCC/GND)";
-    if (consecutiveFails < cfg::DHT_MAX_CONSECUTIVE_FAILS && lastGoodTemp > 0.0f) {
+    if (hasGoodReading && consecutiveFails < cfg::DHT_MAX_CONSECUTIVE_FAILS) {
       tempValid = true;
       currentTemp = lastGoodTemp;
       currentHumidity = lastGoodHum;

@@ -176,6 +176,7 @@ void doorSetEvacuation(bool active) {
   if (active == evacuation) return;
   evacuation = active;
   if (active) {
+    manualOpen = false;
     autoCycle = true;
     closeAt = 0;
     if (!isOpenOrOpening()) startMove(OPEN);
@@ -185,6 +186,7 @@ void doorSetEvacuation(bool active) {
 }
 
 DoorPhase doorPhase() { return phase; }
+float doorOpenFraction() { return constrain(leafAngle / OPEN, 0.0f, 1.0f); }
 bool doorIsManualOpen() { return manualOpen; }
 bool doorIsAutoCycle() { return autoCycle; }
 bool doorIsEvacuating() { return evacuation; }

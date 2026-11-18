@@ -79,6 +79,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
           <span class="t-sub" id="tempSub">Memuat</span>
         </div>
       </div>
+
+      <div class="tile" id="tFan">
+        <div class="hit" role="group" aria-labelledby="fanTitle fanVal fanSub">
+          <span class="t-title" id="fanTitle">Kipas</span>
+          <span class="ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 12c-2-2.6-2-6 0-8 2 2 2 5.4 0 8zm0 0c2.6-2 6-2 8 0-2 2-5.4 2-8 0zm0 0c2 2.6 2 6 0 8-2-2-2-5.4 0-8zm0 0c-2.6 2-6 2-8 0 2-2 5.4-2 8 0z"/><circle cx="12" cy="12" r="2"/></svg>
+          </span>
+          <span class="t-val" id="fanVal">Memuat</span>
+          <span class="t-sub" id="fanSub"></span>
+          <button type="button" class="btn fan-toggle-btn" id="bFanTile">Nyalakan</button>
+          <button type="button" class="btn fan-logic-btn" id="bFanTileLogic">Balik Logika</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -86,6 +99,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
     <h2 class="v-title">Pengaturan</h2>
     <ul class="list">
       <li><span><b>Logika api</b><small id="sFlame">--</small></span><button type="button" class="btn" id="bFlame">Balik</button></li>
+      <li><span><b>Logika relay kipas</b><small id="sFan">--</small></span><button type="button" class="btn" id="bFanLogic">Balik</button></li>
       <li><span><b>Pin ultrasonik</b><small id="sUs">--</small></span><button type="button" class="btn" id="bSwap">Tukar</button></li>
       <li><span><b>Cari pin</b><small>HC-SR04</small></span><button type="button" class="btn" id="bScan">Pindai</button></li>
       <li><span><b>Suara alarm</b><small>Saat ada api</small></span><button type="button" class="btn" id="bAlarmTest">Tes</button></li>
@@ -105,6 +119,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
       <div><dt>Batas jarak</dt><dd id="iMax">--</dd></div>
       <div><dt>Sensor suhu (D27)</dt><dd id="iTemp">--</dd></div>
       <div><dt>Kelembaban udara</dt><dd id="iHum">--</dd></div>
+      <div><dt>Relay kipas (D23)</dt><dd id="iFan">--</dd></div>
     </dl>
   </section>
 </main>

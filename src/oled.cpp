@@ -3,11 +3,11 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
+#include <math.h>
+#include <string.h>
 
-#include "automation.h"
-#include "config.h"
-#include "door.h"
 #include "app_network.h"
+#include "config.h"
 #include "sensors.h"
 
 namespace {
@@ -21,104 +21,67 @@ uint16_t animFrame = 0;
 
 // ============================================================================
 // BITMAP WAYANG KULIT DUA KARAKTER (PROGMEM - 20x36 pixel)
-// Proporsional & estetik: menyisakan ruang tengah 82 px yang lapang dan rapi
 // ============================================================================
 
 // Wayang Kiri: 20x36 pixel (Gagah / Bima / Gatotkaca)
 const unsigned char PROGMEM wayang_left_bmp[] = {
-  0x00, 0x30, 0x00,
-  0x00, 0x78, 0x00,
-  0x00, 0x78, 0x00,
-  0x01, 0x78, 0x00,
-  0x01, 0xFC, 0x00,
-  0x0B, 0xFC, 0x00,
-  0x0F, 0xFC, 0x00,
-  0x0F, 0xFC, 0x00,
-  0x0F, 0xFE, 0x00,
-  0x0F, 0xDE, 0x00,
-  0x1F, 0xBF, 0x00,
-  0x1F, 0xFC, 0x00,
-  0x1F, 0xF8, 0x00,
-  0x1F, 0xF8, 0x00,
-  0x3F, 0xFC, 0x00,
-  0x3F, 0x6C, 0x00,
-  0x3F, 0x6C, 0x00,
-  0x3F, 0x4E, 0x00,
-  0x3F, 0x86, 0x00,
-  0x3F, 0xA6, 0x00,
-  0x3F, 0xA6, 0x00,
-  0x3F, 0xF2, 0x00,
-  0x3F, 0xF3, 0x00,
-  0x3F, 0xF3, 0x00,
-  0x3F, 0xF1, 0x00,
-  0x7F, 0xF9, 0x80,
-  0x7F, 0xF1, 0x80,
-  0xFF, 0xF1, 0xB0,
-  0xFF, 0xF0, 0xF0,
-  0xFF, 0xF0, 0x60,
-  0xFB, 0xB0, 0x00,
-  0xF2, 0xF9, 0x00,
-  0xFE, 0x7A, 0x00,
-  0xF8, 0x1C, 0x00,
-  0xFF, 0xFE, 0x00,
-  0x7F, 0xFE, 0x00
+  0x00, 0x30, 0x00, 0x00, 0x78, 0x00, 0x00, 0x78, 0x00, 0x01, 0x78, 0x00,
+  0x01, 0xFC, 0x00, 0x0B, 0xFC, 0x00, 0x0F, 0xFC, 0x00, 0x0F, 0xFC, 0x00,
+  0x0F, 0xFE, 0x00, 0x0F, 0xDE, 0x00, 0x1F, 0xBF, 0x00, 0x1F, 0xFC, 0x00,
+  0x1F, 0xF8, 0x00, 0x1F, 0xF8, 0x00, 0x3F, 0xFC, 0x00, 0x3F, 0x6C, 0x00,
+  0x3F, 0x6C, 0x00, 0x3F, 0x4E, 0x00, 0x3F, 0x86, 0x00, 0x3F, 0xA6, 0x00,
+  0x3F, 0xA6, 0x00, 0x3F, 0xF2, 0x00, 0x3F, 0xF3, 0x00, 0x3F, 0xF3, 0x00,
+  0x3F, 0xF1, 0x00, 0x7F, 0xF9, 0x80, 0x7F, 0xF1, 0x80, 0xFF, 0xF1, 0xB0,
+  0xFF, 0xF0, 0xF0, 0xFF, 0xF0, 0x60, 0xFB, 0xB0, 0x00, 0xF2, 0xF9, 0x00,
+  0xFE, 0x7A, 0x00, 0xF8, 0x1C, 0x00, 0xFF, 0xFE, 0x00, 0x7F, 0xFE, 0x00
 };
 
 // Wayang Kanan: 20x36 pixel (Satria / Arjuna / Janaka)
 const unsigned char PROGMEM wayang_right_bmp[] = {
-  0x08, 0x00, 0x00,
-  0x1E, 0xC0, 0x00,
-  0x1F, 0x80, 0x00,
-  0x3F, 0xC0, 0x00,
-  0x3F, 0xC8, 0x00,
-  0x3F, 0xF0, 0x00,
-  0x3F, 0xF0, 0x00,
-  0x7F, 0xF0, 0x00,
-  0x77, 0xF0, 0x00,
-  0x7B, 0xF0, 0x00,
-  0x7F, 0xF0, 0x00,
-  0x0F, 0xFF, 0x00,
-  0x0D, 0xFF, 0xC0,
-  0x0D, 0xF0, 0xE0,
-  0x1A, 0xF0, 0xE0,
-  0x1A, 0xF8, 0x60,
-  0x19, 0xF8, 0x30,
-  0x19, 0xFC, 0x30,
-  0x19, 0xFC, 0x30,
-  0x1B, 0xFC, 0x60,
-  0x1F, 0xF8, 0x40,
-  0x17, 0xF8, 0xC0,
-  0x17, 0xFD, 0x80,
-  0x1F, 0xFF, 0x80,
-  0x1F, 0xFF, 0x00,
-  0x1F, 0xFF, 0x00,
-  0x3F, 0xFF, 0x00,
-  0x3F, 0xFF, 0x00,
-  0xEC, 0xEF, 0x00,
-  0xAC, 0xEF, 0x00,
-  0x1C, 0xFF, 0x00,
-  0x1C, 0x5F, 0x80,
-  0x1E, 0xEF, 0x80,
-  0x3F, 0xFE, 0x00,
-  0x3F, 0xFE, 0x00,
-  0x00, 0x42, 0x00
+  0x08, 0x00, 0x00, 0x1E, 0xC0, 0x00, 0x1F, 0x80, 0x00, 0x3F, 0xC0, 0x00,
+  0x3F, 0xC8, 0x00, 0x3F, 0xF0, 0x00, 0x3F, 0xF0, 0x00, 0x7F, 0xF0, 0x00,
+  0x77, 0xF0, 0x00, 0x7B, 0xF0, 0x00, 0x7F, 0xF0, 0x00, 0x0F, 0xFF, 0x00,
+  0x0D, 0xFF, 0xC0, 0x0D, 0xF0, 0xE0, 0x1A, 0xF0, 0xE0, 0x1A, 0xF8, 0x60,
+  0x19, 0xF8, 0x30, 0x19, 0xFC, 0x30, 0x19, 0xFC, 0x30, 0x1B, 0xFC, 0x60,
+  0x1F, 0xF8, 0x40, 0x17, 0xF8, 0xC0, 0x17, 0xFD, 0x80, 0x1F, 0xFF, 0x80,
+  0x1F, 0xFF, 0x00, 0x1F, 0xFF, 0x00, 0x3F, 0xFF, 0x00, 0x3F, 0xFF, 0x00,
+  0xEC, 0xEF, 0x00, 0xAC, 0xEF, 0x00, 0x1C, 0xFF, 0x00, 0x1C, 0x5F, 0x80,
+  0x1E, 0xEF, 0x80, 0x3F, 0xFE, 0x00, 0x3F, 0xFE, 0x00, 0x00, 0x42, 0x00
 };
 
 // Ikon Api (12x12)
 const unsigned char PROGMEM flame_f0_bmp[] = {
-  0x06, 0x00, 0x0F, 0x00, 0x1F, 0x80, 0x37, 0xC0, 
-  0x63, 0xC0, 0xE1, 0xE0, 0xC0, 0xE0, 0xE0, 0xE0, 
+  0x06, 0x00, 0x0F, 0x00, 0x1F, 0x80, 0x37, 0xC0,
+  0x63, 0xC0, 0xE1, 0xE0, 0xC0, 0xE0, 0xE0, 0xE0,
   0x71, 0xC0, 0x3B, 0x80, 0x1F, 0x00, 0x0E, 0x00
 };
 const unsigned char PROGMEM flame_f1_bmp[] = {
-  0x03, 0x00, 0x07, 0x80, 0x1F, 0x80, 0x3F, 0xC0, 
-  0x79, 0xC0, 0xF0, 0xE0, 0xE0, 0x70, 0x70, 0x70, 
+  0x03, 0x00, 0x07, 0x80, 0x1F, 0x80, 0x3F, 0xC0,
+  0x79, 0xC0, 0xF0, 0xE0, 0xE0, 0x70, 0x70, 0x70,
   0x38, 0xE0, 0x1D, 0xC0, 0x0F, 0x80, 0x07, 0x00
 };
 
+// Mikro-ikon UI (PROGMEM)
+// Tetes Kelembaban (5x7)
+const unsigned char PROGMEM drop_icon_bmp[] = {
+  0x20, 0x20, 0x70, 0xF8, 0xD8, 0xF8, 0x70
+};
+// Perisai Siaga Api (7x7)
+const unsigned char PROGMEM shield_icon_bmp[] = {
+  0x7C, 0xFE, 0xD6, 0xC6, 0x7C, 0x38, 0x10
+};
+
 // ============================================================================
-// HARDWARE DETECTION & SETUP
+// UTILITAS GAMBAR & DETEKSI HARDWARE
 // ============================================================================
+
+void drawCentered(int16_t y, const char *txt, int16_t minX = 0, int16_t maxX = 128) {
+  int16_t w = (int16_t)strlen(txt) * 6;
+  int16_t x = minX + ((maxX - minX) - w) / 2;
+  if (x < minX) x = minX;
+  display.setCursor(x, y);
+  display.print(txt);
+}
 
 bool detect(bool force) {
   if (active) return true;
@@ -154,179 +117,80 @@ bool detect(bool force) {
 }
 
 // ============================================================================
-// HEADER & FOOTER BERSIH
+// HEADER BERSIH (ZONA KUNING Y = 0..14: HANYA ALAMAT IP)
 // ============================================================================
 
-void drawHeader() {
+void drawIpHeader() {
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-
-  // Badge Hotspot AP di kanan atas (tampilan clean tanpa tulisan judul)
-  display.drawRoundRect(106, 1, 20, 9, 2, SSD1306_WHITE);
-  display.setCursor(110, 2);
-  display.print("AP");
-
-  display.drawFastHLine(0, 11, 128, SSD1306_WHITE);
+  char buf[24];
+  snprintf(buf, sizeof(buf), "IP: %s", networkIp().c_str());
+  drawCentered(3, buf);
+  display.drawFastHLine(0, 14, 128, SSD1306_WHITE);
 }
 
-void drawFooter() {
-  display.drawFastHLine(0, 52, 128, SSD1306_WHITE);
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  // Alamat IP tepat di tengah bawah (simetris)
-  display.setCursor(19, 54);
-  display.printf("IP: %s", networkIp().c_str());
+void drawWayangPair(int8_t offsetX) {
+  // Dipusatkan secara vertikal pada zona biru (Y = 16..63 -> 21..56)
+  display.drawBitmap(2 - offsetX, 21, wayang_left_bmp, 20, 36, SSD1306_WHITE);
+  display.drawBitmap(106 + offsetX, 21, wayang_right_bmp, 20, 36, SSD1306_WHITE);
 }
 
 // ============================================================================
-// TAMPILAN STANDBY (RAPI, SIMETRIS, LAPANG)
+// TAMPILAN UTAMA CLEAN (IP + WAYANG + SUHU + STATUS API)
 // ============================================================================
 
-void drawStandby() {
+void drawCleanMain() {
   display.clearDisplay();
-  drawHeader();
+  drawIpHeader();
 
-  // Animasi goyang lembut kedua wayang
-  int step = (animFrame / 12) % 4;
-  int posL = (step == 1) ? 2 : ((step == 3) ? 1 : 2);
-  int posR = (step == 1) ? 106 : ((step == 3) ? 107 : 106);
+  // Ayunan halus 1 px pada sepasang wayang
+  int8_t sway = ((animFrame / 24) % 2 == 0) ? 0 : 1;
+  drawWayangPair(sway);
 
-  // 1. Wayang Kiri (Bima/Gatotkaca) di X = 2, Y = 14
-  display.drawBitmap(posL, 14, wayang_left_bmp, 20, 36, SSD1306_WHITE);
+  // --- AREA TENGAH CLEAN (X = 24..104, Y = 16..63) ---
 
-  // 2. Wayang Kanan (Arjuna) di X = 106, Y = 14
-  display.drawBitmap(posR, 14, wayang_right_bmp, 20, 36, SSD1306_WHITE);
-
-  // --- AREA TENGAH BERSIH & RAPI (X = 24..104, Lebar 80 px) ---
-
-  // Baris 1 (Y = 14): Status Pintu (Badge Terpusat)
-  if (doorIsManualOpen()) {
-    display.fillRoundRect(27, 14, 74, 10, 2, SSD1306_WHITE);
-    display.setTextColor(SSD1306_BLACK);
-    display.setCursor(33, 15);
-    display.print("BUKA (MAN)");
-    display.setTextColor(SSD1306_WHITE);
-  } else if (doorIsAutoCycle()) {
-    display.fillRoundRect(27, 14, 74, 10, 2, SSD1306_WHITE);
-    display.setTextColor(SSD1306_BLACK);
-    display.setCursor(35, 15);
-    display.print("TERBUKA");
-    display.setTextColor(SSD1306_WHITE);
-  } else {
-    display.drawRoundRect(27, 14, 74, 10, 2, SSD1306_WHITE);
-    display.setCursor(32, 15);
-    display.print("PINTU RAPAT");
-  }
-
-  // Baris 2 (Y = 27): Suhu & Kelembaban (DHT11)
+  // 1. Suhu Utama Besar & Jelas (Y = 19..34)
+  char tempBuf[8];
   if (dhtIsValid()) {
-    display.setCursor(32, 27);
-    display.printf("%.1f C | %d%%", dhtTemperature(), (int)dhtHumidity());
+    snprintf(tempBuf, sizeof(tempBuf), "%.1f", dhtTemperature());
   } else {
-    display.setCursor(36, 27);
-    display.print("Suhu: --.- C");
+    snprintf(tempBuf, sizeof(tempBuf), "--.-");
   }
 
-  // Baris 3 (Y = 39): Sensor Pemicu Interaktif
-  int mode = triggerMode();
-  if (mode == MODE_ULTRASONIC) {
-    int dist = ultrasonicDistance();
-    display.setCursor(30, 39);
-    if (dist > 0 && dist <= 250) {
-      display.printf("JARAK: %d cm", dist);
-    } else {
-      display.print("JARAK: -- cm");
-    }
-  } else if (mode == MODE_TOUCH) {
-    if (touchIsTouched()) {
-      display.fillRoundRect(27, 38, 74, 10, 2, SSD1306_WHITE);
-      display.setTextColor(SSD1306_BLACK);
-      display.setCursor(30, 39);
-      display.print("* TERSENTUH *");
-      display.setTextColor(SSD1306_WHITE);
-    } else {
-      display.setCursor(30, 39);
-      display.print("SENTUH: SIAP");
-    }
-  } else if (mode == MODE_FLAME) {
-    display.setCursor(32, 39);
-    display.print("SENSOR: AMAN");
-  } else {
-    display.setCursor(32, 39);
-    display.print("KONTROL: WEB");
-  }
+  int16_t len = (int16_t)strlen(tempBuf);
+  int16_t totalW = len * 12 + 16;  // angka (size 2) + simbol derajat + 'C' (size 2)
+  int16_t startX = 24 + (80 - totalW) / 2;
 
-  drawFooter();
-  display.display();
-}
-
-// ============================================================================
-// ANIMASI PINTU MEMBUKA / TERBUKA (2 WAYANG MEMBUKA GAPURA)
-// ============================================================================
-
-void drawOpen(unsigned long remainingMs) {
-  display.clearDisplay();
-  drawHeader();
-
-  // Kedua wayang bergeser ke tepi layar membuka gapura
-  display.drawBitmap(0, 14, wayang_left_bmp, 20, 36, SSD1306_WHITE);
-  display.drawBitmap(108, 14, wayang_right_bmp, 20, 36, SSD1306_WHITE);
-
-  display.setTextSize(1);
+  display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(28, 15);
-  display.print(doorPhase() == DoorPhase::Opening ? "PINTU BUKA" : "PINTU BUKA");
+  display.setCursor(startX, 19);
+  display.print(tempBuf);
 
-  display.setCursor(26, 27);
-  int mode = triggerMode();
-  if (mode == MODE_TOUCH) {
-    display.print("Via: Sentuhan");
-  } else if (mode == MODE_FLAME && doorIsEvacuating()) {
-    display.print("Evakuasi Api!");
-  } else if (mode == MODE_ULTRASONIC) {
-    display.print("Objek Dekat");
-  } else {
-    display.print("Selamat Datang");
-  }
+  int16_t degX = startX + len * 12 + 1;
+  display.drawCircle(degX, 22, 2, SSD1306_WHITE);
+  display.setCursor(degX + 5, 19);
+  display.print("C");
 
-  // Bar progress countdown menutup
-  if (!doorIsEvacuating()) {
-    float frac = (float)remainingMs / (float)cfg::DOOR_HOLD_MS;
-    int fillW = constrain((int)(frac * 74), 0, 74);
-    display.drawRoundRect(26, 39, 76, 7, 2, SSD1306_WHITE);
-    if (fillW > 0) {
-      display.fillRect(27, 40, fillW, 5, SSD1306_WHITE);
-    }
-  }
-
-  drawFooter();
-  display.display();
-}
-
-// ============================================================================
-// ANIMASI PINTU MENUTUP
-// ============================================================================
-
-void drawClosing() {
-  display.clearDisplay();
-  drawHeader();
-
-  display.drawBitmap(2, 14, wayang_left_bmp, 20, 36, SSD1306_WHITE);
-  display.drawBitmap(106, 14, wayang_right_bmp, 20, 36, SSD1306_WHITE);
-
+  // 2. Keterangan Kelembaban (Y = 38..45)
   display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(28, 18);
-  display.print("MENUTUP...");
+  char humBuf[16];
+  if (dhtIsValid()) {
+    snprintf(humBuf, sizeof(humBuf), "Lembab %d%%", (int)lroundf(dhtHumidity()));
+  } else {
+    snprintf(humBuf, sizeof(humBuf), "Lembab --%%");
+  }
+  int16_t humW = 7 + (int16_t)strlen(humBuf) * 6;
+  int16_t humX = 24 + (80 - humW) / 2;
+  display.drawBitmap(humX, 38, drop_icon_bmp, 5, 7, SSD1306_WHITE);
+  display.setCursor(humX + 7, 38);
+  display.print(humBuf);
 
-  display.setCursor(28, 30);
-  display.print("Hati - Hati");
+  // 3. Keterangan Status Api dalam Pill Rapi (Y = 49..61)
+  display.drawRoundRect(26, 49, 76, 12, 3, SSD1306_WHITE);
+  display.drawBitmap(31, 51, shield_icon_bmp, 7, 7, SSD1306_WHITE);
+  display.setCursor(41, 51);
+  display.print("API: AMAN");
 
-  int arrowCycle = (animFrame / 3) % 4;
-  display.setCursor(38 + (arrowCycle * 4), 40);
-  display.print("> >");
-
-  drawFooter();
   display.display();
 }
 
@@ -337,34 +201,28 @@ void drawClosing() {
 void drawFire(unsigned long now) {
   display.clearDisplay();
 
-  bool flash = (now / 200) % 2;
+  bool flash = (now / 220) % 2;
+  uint16_t fg = flash ? SSD1306_BLACK : SSD1306_WHITE;
   if (flash) {
     display.fillRect(0, 0, 128, 64, SSD1306_WHITE);
-    display.setTextColor(SSD1306_BLACK);
-  } else {
-    display.setTextColor(SSD1306_WHITE);
   }
+  display.setTextColor(fg);
 
-  display.drawBitmap(2, 14, wayang_left_bmp, 20, 36, flash ? SSD1306_BLACK : SSD1306_WHITE);
-  display.drawBitmap(106, 14, wayang_right_bmp, 20, 36, flash ? SSD1306_BLACK : SSD1306_WHITE);
+  display.drawBitmap(0, 21, wayang_left_bmp, 20, 36, fg);
+  display.drawBitmap(108, 21, wayang_right_bmp, 20, 36, fg);
 
   display.setTextSize(1);
-  display.setCursor(12, 3);
-  display.print("! PERINGATAN API !");
-  display.drawFastHLine(0, 12, 128, flash ? SSD1306_BLACK : SSD1306_WHITE);
+  drawCentered(3, "! PERINGATAN API !");
+  display.drawFastHLine(0, 14, 128, fg);
 
   const unsigned char *flameBmp = ((now / 150) % 2 == 0) ? flame_f0_bmp : flame_f1_bmp;
-  display.drawBitmap(30, 20, flameBmp, 12, 12, flash ? SSD1306_BLACK : SSD1306_WHITE);
+  display.drawBitmap(28, 22, flameBmp, 12, 12, fg);
 
-  display.setCursor(46, 22);
+  display.setCursor(44, 24);
   display.print("ADA API!");
 
-  display.setCursor(28, 36);
-  display.print("EVAKUASI AKTIF");
-
-  display.drawFastHLine(0, 50, 128, flash ? SSD1306_BLACK : SSD1306_WHITE);
-  display.setCursor(26, 54);
-  display.print("PINTU TERBUKA");
+  drawCentered(40, "EVAKUASI AKTIF", 21, 107);
+  drawCentered(52, "PINTU TERBUKA", 21, 107);
 
   display.display();
 }
@@ -384,20 +242,22 @@ void oledShowBoot(const char *statusText) {
   if (!active) return;
   display.clearDisplay();
 
-  display.drawBitmap(4, 14, wayang_left_bmp, 20, 36, SSD1306_WHITE);
-  display.drawBitmap(104, 14, wayang_right_bmp, 20, 36, SSD1306_WHITE);
+  drawIpHeader();
+  drawWayangPair(0);
 
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-  display.setCursor(30, 16);
-  display.print("RUMAH JOGLO");
+  drawCentered(34, "Memulai...", 24, 104);
 
-  display.setCursor(34, 28);
-  display.print("Smart Home");
-
-  display.drawRoundRect(26, 44, 76, 12, 2, SSD1306_WHITE);
-  display.setCursor(30, 46);
-  display.print(statusText);
+  display.drawRoundRect(26, 48, 76, 12, 2, SSD1306_WHITE);
+  // Tampilkan status singkat di bagian bawah bila muat, atau di kotak penuh
+  if (strlen(statusText) <= 12) {
+    drawCentered(50, statusText, 27, 101);
+  } else {
+    display.fillRect(4, 48, 120, 13, SSD1306_BLACK);
+    display.drawRoundRect(4, 48, 120, 13, 2, SSD1306_WHITE);
+    drawCentered(50, statusText, 6, 122);
+  }
 
   display.display();
 }
@@ -406,19 +266,17 @@ void oledShowSplash() {
   if (!active) return;
   display.clearDisplay();
 
-  display.drawBitmap(4, 14, wayang_left_bmp, 20, 36, SSD1306_WHITE);
-  display.drawBitmap(104, 14, wayang_right_bmp, 20, 36, SSD1306_WHITE);
+  drawIpHeader();
+  drawWayangPair(0);
 
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-  display.setCursor(30, 16);
-  display.print("RUMAH JOGLO");
+  drawCentered(28, "Sistem Siap", 24, 104);
 
-  display.setCursor(34, 28);
-  display.print("Sistem Siap");
-
-  display.setCursor(30, 46);
-  display.print("AP: Mandiri");
+  display.fillRoundRect(30, 42, 68, 11, 2, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK);
+  drawCentered(44, "ONLINE", 30, 98);
+  display.setTextColor(SSD1306_WHITE);
 
   display.display();
   delay(150);
@@ -434,15 +292,10 @@ void oledUpdate(unsigned long now) {
   lastDraw = now;
   animFrame++;
 
-  DoorPhase phase = doorPhase();
   if (flameDetected()) {
     drawFire(now);
-  } else if (phase == DoorPhase::Closing) {
-    drawClosing();
-  } else if (doorIsAutoCycle() && (phase == DoorPhase::Opening || phase == DoorPhase::Open)) {
-    drawOpen(doorHoldRemainingMs(now));
   } else {
-    drawStandby();
+    drawCleanMain();
   }
 }
 

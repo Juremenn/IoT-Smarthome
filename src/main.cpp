@@ -12,6 +12,7 @@
 #include "automation.h"
 #include "config.h"
 #include "door.h"
+#include "fan.h"
 #include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
@@ -40,8 +41,9 @@ void setup() {
     Serial.printf("Kode: %d\n", (int)reason);
   }
 
-  // Servo dipasang paling awal supaya pintu langsung diam di posisi tertutup.
+  // Servo dan relay dipasang paling awal supaya pintu diam tertutup dan kipas tetap mati saat boot.
   doorBegin();
+  fanBegin();
   ultrasonicBegin();
   flameBegin();
   dhtBegin();
@@ -52,13 +54,16 @@ void setup() {
   webBegin();
   oledShowSplash();
 
-  touchBegin();
+  if (triggerMode() == MODE_TOUCH) {
+    touchBegin();
+  }
 
   Serial.println("\n=============================================");
   Serial.println("  SMART HOME RUMAH JOGLO - IOT SYSTEM");
   Serial.printf("  Servo Pintu: GPIO D%d\n", cfg::PIN_SERVO);
   Serial.printf("  Sensor Api 5-Way: GPIO D%d\n", cfg::PIN_FLAME);
   Serial.printf("  Sensor Suhu (DHT11): GPIO D%d\n", cfg::PIN_DHT);
+  Serial.printf("  Relay Kipas: GPIO D%d\n", cfg::PIN_FAN);
   Serial.printf("  Sensor Ultrasonik: Trig=D%d, Echo=D%d\n", ultrasonicTrigPin(),
                 ultrasonicEchoPin());
   Serial.printf("  Dashboard Web: http://%s\n", networkIp().c_str());
@@ -70,7 +75,10 @@ void loop() {
 
   networkMaintain(now);
   webHandle();
-  dhtUpdate(now);
+  // Tunda pembacaan DHT11 (~25ms blocking) saat servo sedang bergerak agar gerak pintu tetap halus
+  if (doorPhase() == DoorPhase::Closed || doorPhase() == DoorPhase::Open) {
+    dhtUpdate(now);
+  }
   automationUpdate(now);
   doorUpdate(now);
   oledUpdate(now);
@@ -78,13 +86,13 @@ void loop() {
   if (now - lastSerialLog >= 3000) {
     lastSerialLog = now;
     if (dhtIsValid()) {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Touch(D4): %d | Flame: %s (Raw: %d) | OLED: %s\n",
-                    doorStatusText(), dhtTemperature(), dhtHumidity(), triggerMode(), touchRawValue(),
-                    flameDetected() ? "API!" : "Aman", flameRaw(), oledIsActive() ? "Aktif" : "Offline");
+      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Jarak: %d cm | Kipas: %s | Flame: %s | OLED: %s\n",
+                    doorStatusText(), dhtTemperature(), dhtHumidity(), triggerMode(), ultrasonicDistance(),
+                    fanIsOn() ? "ON" : "OFF", flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     } else {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Touch(D4): %d | Flame: %s (Raw: %d) | OLED: %s\n",
-                    doorStatusText(), dhtStatusMessage(), triggerMode(), touchRawValue(),
-                    flameDetected() ? "API!" : "Aman", flameRaw(), oledIsActive() ? "Aktif" : "Offline");
+      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Jarak: %d cm | Kipas: %s | Flame: %s | OLED: %s\n",
+                    doorStatusText(), dhtStatusMessage(), triggerMode(), ultrasonicDistance(),
+                    fanIsOn() ? "ON" : "OFF", flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     }
   }
 
