@@ -46,7 +46,7 @@
     <div class="brand-wrapper">
       <div class="brand-icon" aria-hidden="true">
         <!-- Minimalist Yogyakarta Joglo Roof SVG -->
-        <svg viewBox="0 0 36 36" width="36" height="36" fill="none" stroke="#3B281E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 36 36" width="36" height="36" fill="none" stroke="#111827" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 28 L11 20 L15 9 L21 9 L25 20 L32 28 Z"/>
           <path d="M11 20 L25 20"/>
           <path d="M15 9 L21 9"/>
@@ -220,47 +220,7 @@
     </div>
   </main>
 
-  <!-- View 2: Pengaturan -->
-  <section class="view-panel" id="view-pengaturan" role="tabpanel" aria-labelledby="tab-pengaturan">
-    <div class="settings-list">
-      <div class="setting-row">
-        <div class="setting-info">
-          <h4>Ambang Batas Jarak Ultrasonik</h4>
-          <p>Jarak objek yang memicu servo pintu membuka otomatis (cm)</p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="number" id="settingThreshold" min="5" max="50" value="15" style="width: 64px; padding: 6px; border: 1px solid var(--border-brass-muted); border-radius: 6px; font-family: var(--font-mono); font-size: 13px; text-align: center;">
-          <span style="font-size: 12px; color: var(--text-secondary);">cm</span>
-        </div>
-      </div>
-
-      <div class="setting-row">
-        <div class="setting-info">
-          <h4>Logika Polaritas Sensor Api (GPIO 34)</h4>
-          <p id="settingFlamePolarityDesc">Active-HIGH (1 = Ada Api, 0 = Aman)</p>
-        </div>
-        <button type="button" class="btn-secondary" id="btnSettingFlameToggle">Balik Polaritas</button>
-      </div>
-
-      <div class="setting-row">
-        <div class="setting-info">
-          <h4>Pasangan Pin Sensor Ultrasonik</h4>
-          <p id="settingUsPinDesc">Trig D4, Echo D5</p>
-        </div>
-        <button type="button" class="btn-secondary" id="btnSettingUsSwap">Tukar Trig / Echo</button>
-      </div>
-
-      <div class="setting-row">
-        <div class="setting-info">
-          <h4>Uji Bunyi Alarm Darurat</h4>
-          <p>Memutar simulasi horn strobe jika terjadi indikasi api</p>
-        </div>
-        <button type="button" class="btn-secondary" id="btnAlarmTest">Uji Suara</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- View 3: Info & Pinout Map -->
+  <!-- View 2: Info & Pinout Map -->
   <section class="view-panel" id="view-info" role="tabpanel" aria-labelledby="tab-info">
     <div class="info-grid">
       <table class="pin-table">
@@ -333,14 +293,6 @@
         <rect x="14" y="14" width="7" height="7" rx="1.5"/>
       </svg>
       <span>Perangkat</span>
-    </button>
-
-    <button type="button" class="nav-tab" id="tab-pengaturan" data-target="view-pengaturan">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-      <span>Pengaturan</span>
     </button>
 
     <button type="button" class="nav-tab" id="tab-info" data-target="view-info">

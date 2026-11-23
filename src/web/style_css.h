@@ -20,8 +20,9 @@ const char STYLE_CSS[] PROGMEM = R"rawliteral(
   --border-brass: #C8B08A;
   --border-brass-muted: rgba(200, 176, 138, 0.55);
   --border-brass-hover: #C8B08A;
-  --text-primary: #3B281E;
-  --text-secondary: #7A6A5E;
+  --text-primary: #121212;
+  --text-secondary: #374151;
+  --text-muted: #4B5563;
   --accent-terracotta: #A84A28;
   --accent-terracotta-tint: #F7EBE6;
   --accent-celadon: #4A6B5D;
@@ -228,10 +229,10 @@ body {
 .card-label {
   font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: #111827;
 }
 
 .card-sub-icon {
@@ -302,14 +303,16 @@ body {
 
 .status-sub {
   font-size: 12px;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: #374151;
   margin-top: 2px;
 }
 
 .telemetry-mono {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text-secondary);
+  font-weight: 500;
+  color: #111827;
   margin-top: 4px;
   letter-spacing: 0.02em;
 }
@@ -522,11 +525,12 @@ button:disabled {
 }
 
 .nav-inner {
-  max-width: 1120px;
+  max-width: 440px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 80px;
   padding: 8px 16px;
 }
 
@@ -535,14 +539,14 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 72px;
+  min-width: 80px;
   min-height: 48px;
   justify-content: center;
-  color: var(--text-secondary);
+  color: #374151;
   font-family: var(--font-display);
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   transition: color var(--transition);
 }
 

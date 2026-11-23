@@ -298,20 +298,25 @@
     } catch (e) {}
   }
 
-  $('btnFlameToggleLogic').addEventListener('click', toggleFlameLogic);
-  $('btnSettingFlameToggle').addEventListener('click', toggleFlameLogic);
+  const btnFlameToggle = $('btnFlameToggleLogic');
+  if (btnFlameToggle) btnFlameToggle.addEventListener('click', toggleFlameLogic);
+  const btnSettingFlame = $('btnSettingFlameToggle');
+  if (btnSettingFlame) btnSettingFlame.addEventListener('click', toggleFlameLogic);
 
   // Ultrasonic Pin Swap
-  $('btnSettingUsSwap').addEventListener('click', async () => {
-    try {
-      const d = await fetchEndpoint('/api/ultrasonic?swap=1');
-      const desc = $('settingUsPinDesc');
-      if (desc && d) {
-        desc.textContent = `Trig D${d.trigPin}, Echo D${d.echoPin}`;
-      }
-      renderDashboard(d);
-    } catch (e) {}
-  });
+  const btnSettingUs = $('btnSettingUsSwap');
+  if (btnSettingUs) {
+    btnSettingUs.addEventListener('click', async () => {
+      try {
+        const d = await fetchEndpoint('/api/ultrasonic?swap=1');
+        const desc = $('settingUsPinDesc');
+        if (desc && d) {
+          desc.textContent = `Trig D${d.trigPin}, Echo D${d.echoPin}`;
+        }
+        renderDashboard(d);
+      } catch (e) {}
+    });
+  }
 
   // Threshold Configuration
   const thresholdInput = $('settingThreshold');
@@ -369,11 +374,14 @@
     }
   }
 
-  $('btnAlarmTest').addEventListener('click', () => {
-    if (!audio) return;
-    playAlarmAudio(true);
-    setTimeout(() => playAlarmAudio(false), 3000);
-  });
+  const btnAlarmTest = $('btnAlarmTest');
+  if (btnAlarmTest) {
+    btnAlarmTest.addEventListener('click', () => {
+      if (!audio) return;
+      playAlarmAudio(true);
+      setTimeout(() => playAlarmAudio(false), 3000);
+    });
+  }
 
   // Initialize Polling
   pollStatus();
