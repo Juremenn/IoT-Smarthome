@@ -3,401 +3,386 @@
 
 // Logika dashboard. Disajikan di "/app.js".
 const char APP_JS[] PROGMEM = R"rawliteral(
+/**
+ * Rumah Joglo - Smart Home IoT Controller & Hardware Abstraction Layer
+ * Yogyakarta Keraton Minimalism Edition
+ */
+
 (() => {
-'use strict';
-const POLL_MS = 300, FAIL_LIMIT = 3, TIMEOUT_MS = 3000, SCALE_CM = 40;
-const DOOR_CLOSE_MS = 7000; // sama dengan DOOR_CLOSE_MS di include/config.h
-const DOOR_CLOSED = 'M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18M15 12h.01';
-const DOOR_OPEN = 'M14 4h4a1 1 0 0 1 1 1v16M3 21h18M5 21V5.5L14 3v18M11 12h.01';
-const MODE_NAME = { 0: 'Manual', 1: 'Sentuh', 2: 'Sensor api', 3: 'Ultrasonik' };
-const $ = id => document.getElementById(id);
+  'use strict';
 
-/* Tulis ke DOM hanya bila nilainya berubah */
-const memo = new Map();
-const put = (k, v, fn) => { if (memo.get(k) !== v) { memo.set(k, v); fn(v); } };
-const text = (id, v) => put(id + ':t', v, x => { $(id).textContent = x; });
-const flag = (id, c, on) => put(id + ':' + c, on, x => { $(id).classList.toggle(c, x); });
-const attr = (id, a, v) => put(id + ':' + a, v, x => { $(id).setAttribute(a, x); });
+  // Hardware Abstraction Layer Configuration
+  const CONFIG = {
+    USE_SIMULATOR: true,
+    ESP32_BASE_URL: window.location.origin || "http://127.0.0.1:8080",
+    POLL_INTERVAL_MS: 1000,
+    ULTRASONIC_TRIGGER_CM: 15
+  };
 
-let last = null, fails = 0, online = false, wake = null, closingUntil = 0;
-const busy = new Set();
+  // State Management
+  let lastData = null;
+  let isCountdownActive = false;
+  let countdownTimer = null;
+  let isAudioUnlocked = false;
 
-/* Jaringan: satu loop polling, request baru setelah yang lama selesai */
-async function get(url) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-  try {
-    const r = await fetch(url, { cache: 'no-store', signal: ctl.signal });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } finally { clearTimeout(t); }
-}
-const sleep = ms => new Promise(res => { wake = res; setTimeout(res, ms); });
+  const $ = id => document.getElementById(id);
 
-async function pollLoop() {
-  for (;;) {
+  // SVG Icons for Door States
+  const SVG_DOOR_CLOSED = `
+    <path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/>
+    <path d="M2 20h20"/>
+    <circle cx="14" cy="12" r="1" fill="currentColor"/>
+  `;
+
+  const SVG_DOOR_OPEN = `
+    <path d="M14 4h4a2 2 0 0 1 2 2v14"/>
+    <path d="M2 20h20"/>
+    <path d="M6 20V6a2 2 0 0 1 2-2l6-2v18"/>
+    <circle cx="10" cy="12" r="1" fill="currentColor"/>
+  `;
+
+  // Network Fetch with Timeout
+  async function fetchEndpoint(path) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
     try {
-      const d = await get('/api/status');
-      fails = 0;
-      setOnline(true);
-      render(d);
-    } catch (e) {
-      if (++fails >= FAIL_LIMIT) setOnline(false);
+      const url = `${CONFIG.ESP32_BASE_URL}${path}`;
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timeout);
     }
-    await sleep(POLL_MS);
   }
-}
 
-function setOnline(on) {
-  online = on;
-  flag('conn', 'ok', on);
-  flag('conn', 'bad', !on);
-  if (!on) text('connText', 'Terputus');
-  put('body:off', !on, x => document.body.classList.toggle('offline', x));
-  if (!on) ['doorSub', 'modeSub', 'flameSub', 'distSub', 'tempSub', 'fanSub'].forEach(id => text(id, 'Offline'));
-  sync();
-}
-
-const evacuating = d => !!d && d.doorTriggerMode === 2 && d.flame;
-const CONTROLS = ['bAuto', 'bOpen', 'bClose', 'modeHit', 'bFlame', 'bFlameTile', 'bFanTile', 'bFanTileLogic', 'bFanLogic', 'bSwap', 'bScan'];
-function sync() {
-  for (const id of CONTROLS) {
-    let off = !online || !last || busy.has(id);
-    if (id === 'bClose' && evacuating(last)) off = true;
-    put(id + ':d', off, x => { $(id).disabled = x; });
-  }
-}
-
-/* Toast konfirmasi */
-let toastTimer;
-function toast(msg) {
-  const el = $('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
-}
-
-async function act(id, url, ok, tileId) {
-  busy.add(id);
-  if (tileId) $(tileId).setAttribute('aria-busy', 'true');
-  sync();
-  try {
-    const d = await get(url);
-    if (d && 'door' in d) render(d);
-    toast(typeof ok === 'function' ? ok(d) : ok);
-  } catch (e) {
-    toast('Gagal terkirim');
-  } finally {
-    busy.delete(id);
-    if (tileId) $(tileId).removeAttribute('aria-busy');
-    sync();
-  }
-}
-
-function uptime(s) {
-  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
-  return h ? h + ' j ' + m + ' m' : m ? m + ' m ' + (s % 60) + ' d' : s + ' d';
-}
-
-/* Render data /api/status */
-function render(d) {
-  const prev = last;
-  last = d;
-  const mode = d.doorTriggerMode, evac = evacuating(d);
-
-  // Koneksi: tampilkan alamat perangkat, bukan kata "Online"
-  text('connText', d.ip);
-  attr('conn', 'aria-label', 'Terhubung ke ' + d.ip);
-
-  // Pintu
-  const open = d.door !== 'TERTUTUP', auto = d.door === 'AUTO_CYCLE';
-  // Firmware melapor TERTUTUP begitu pintu mulai menutup; UI menampilkan "Menutup" selama geraknya.
-  if (!open && prev && prev.door !== 'TERTUTUP') closingUntil = Date.now() + DOOR_CLOSE_MS;
-  if (open) closingUntil = 0;
-  const closing = !open && Date.now() < closingUntil;
-  const doorVal = evac ? 'Evakuasi' : auto ? 'Membuka' : open ? 'Terbuka' : closing ? 'Menutup' : 'Tertutup';
-  flag('tDoor', 'on', open || closing);
-  attr('doorPath', 'd', open || closing ? DOOR_OPEN : DOOR_CLOSED);
-  text('doorVal', doorVal);
-  flag('doorSub', 'alert', evac);
-  text('doorSub', evac ? 'Terkunci' : auto ? 'Tutup otomatis' : open ? 'Buka terus' : '');
-  text('bClose', evac ? 'Terkunci' : 'Tutup');
-
-  // Pemicu
-  const dist = d.distance, hit = mode === 3 && dist > 0 && dist <= d.maxDistance;
-  let sub = 'Nonaktif', active = false;
-  if (mode === 1) { active = d.touchDetected; sub = active ? 'Tersentuh' : 'Siap (' + d.touchRaw + ')'; }
-  else if (mode === 2) { sub = d.flame ? 'Ada api' : 'Memantau'; }
-  else if (mode === 3) { active = hit; sub = hit ? 'Terpicu' : 'Standby'; }
-  flag('tMode', 'on', active);
-  flag('modeSub', 'alert', mode === 2 && d.flame);
-  text('modeVal', MODE_NAME[mode] || 'Manual');
-  text('modeSub', sub);
-  attr('modeHit', 'aria-label', 'Pemicu pintu, ' + (MODE_NAME[mode] || 'Manual') + ', ' + sub.toLowerCase() + '. Ganti');
-  const r = document.querySelector('input[name=mode][value="' + mode + '"]');
-  if (r && !r.checked) r.checked = true;
-
-  // Api
-  flag('tFlame', 'danger', d.flame);
-  if (d.flame && !(prev && prev.flame)) {
-    const t = $('tFlame'); t.classList.remove('pulse'); void t.offsetWidth; t.classList.add('pulse');
-  }
-  text('flameVal', d.flame ? 'Bahaya' : 'Aman');
-  text('flameSub', 'D34: ' + d.flameRaw + ' (' + (d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW') + ')');
-  text('bFlameTile', d.flameActiveHigh ? 'Ganti: Active-LOW' : 'Ganti: Active-HIGH');
-  alarmUpdate(d.flame);
-
-  // Jarak
-  const on3 = mode === 3;
-  flag('tDist', 'on', hit);
-  text('distNum', !on3 ? '--' : dist > 0 ? String(dist) : SCALE_CM + '+');
-  text('distSub', !on3 ? 'Nonaktif' : hit ? 'Terpicu' : 'Standby');
-  put('fill', on3 && dist > 0 ? Math.min(dist, SCALE_CM) : 0, x => { $('distFill').style.width = (x / SCALE_CM * 100) + '%'; });
-  put('tick', d.maxDistance, x => { $('distTick').style.left = Math.min(100, x / SCALE_CM * 100) + '%'; });
-
-  // Suhu & Kelembaban (DHT11)
-  const hasTemp = d.tempValid && typeof d.temp === 'number';
-  text('tempNum', hasTemp ? d.temp.toFixed(1) : '--');
-  text('tempSub', hasTemp ? ('Lembab: ' + d.humidity.toFixed(0) + '%') : (d.dhtStatus || 'Menunggu sensor...'));
-  put('tempFill', hasTemp ? Math.min(Math.max(d.temp, 0), 50) : 0, x => { $('tempFill').style.width = (x / 50 * 100) + '%'; });
-
-  // Kipas (Relay D23)
-  flag('tFan', 'on', !!d.fan);
-  text('fanVal', d.fan ? 'Menyala' : 'Mati');
-  text('fanSub', 'D' + (d.fanPin || 23) + ' (' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH') + ')');
-  text('bFanTile', d.fan ? 'Matikan' : 'Nyalakan');
-  text('bFanTileLogic', d.fanActiveLow ? 'Ganti: Active-HIGH' : 'Ganti: Active-LOW');
-  attr('bFanTile', 'aria-label', 'Kipas, ' + (d.fan ? 'Menyala' : 'Mati') + '. Tekan untuk ' + (d.fan ? 'mematikan' : 'menyalakan'));
-
-  // Pengaturan
-  text('sFlame', d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW');
-  text('sFan', d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH');
-  text('sUs', 'Trig D' + d.trigPin + ', Echo D' + d.echoPin);
-
-  // Info
-  text('iIp', d.ip);
-  text('iOled', d.oled ? 'Online (' + d.oledAddress.toUpperCase().replace('0X', '0x') + ')' : 'Offline');
-  text('iUp', uptime(d.uptime));
-  text('iFlame', d.flameRaw + (d.flameRaw === 1 ? ' (HIGH)' : ' (LOW)'));
-  text('iTouch', d.touchRaw + ' / ' + d.touchBaseline);
-  text('iEcho', d.rawEcho + ' µs');
-  text('iMax', '≤ ' + d.maxDistance + ' cm');
-  text('iTemp', hasTemp ? (d.temp.toFixed(1) + ' °C') : (d.dhtStatus || 'Tidak terbaca'));
-  text('iHum', hasTemp ? (d.humidity.toFixed(0) + ' %') : (d.dhtStatus || 'Tidak terbaca'));
-  text('iFan', (d.fan ? 'Menyala' : 'Mati') + ' (' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH') + ')');
-
-  sync();
-}
-
-/* Bottom sheet */
-function openSheet(id) { const s = $(id); if (!s.open) s.showModal(); }
-document.querySelectorAll('dialog').forEach(s => {
-  s.addEventListener('click', e => { if (e.target === s || e.target.hasAttribute('data-close')) s.close(); });
-});
-
-/* Aksi */
-$('bAuto').addEventListener('click', () => act('bAuto', '/api/door?action=auto', 'Pintu dibuka 2 detik', 'tDoor'));
-$('bOpen').addEventListener('click', () => act('bOpen', '/api/door?action=open', 'Pintu terbuka', 'tDoor'));
-$('bClose').addEventListener('click', () => act('bClose', '/api/door?action=close', 'Pintu menutup', 'tDoor'));
-$('modeHit').addEventListener('click', () => openSheet('sheetMode'));
-document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => {
-  $('sheetMode').close();
-  act('modeHit', '/api/door?action=set_mode&mode=' + r.value, 'Pemicu: ' + MODE_NAME[r.value], 'tMode');
-}));
-$('bFlame').addEventListener('click', () => act('bFlame', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW')));
-$('bFlameTile').addEventListener('click', () => act('bFlameTile', '/api/flame?toggle_logic=1', d => 'Logika api: ' + (d.flameActiveHigh ? 'Active-HIGH (1=Api)' : 'Active-LOW (0=Api)'), 'tFlame'));
-$('bFanTile').addEventListener('click', () => act('bFanTile', '/api/fan?toggle=1', d => d.fan ? 'Kipas dinyalakan' : 'Kipas dimatikan', 'tFan'));
-$('bFanTileLogic').addEventListener('click', () => act('bFanTileLogic', '/api/fan?toggle_logic=1', d => 'Logika relay kipas: ' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH'), 'tFan'));
-$('bFanLogic').addEventListener('click', () => act('bFanLogic', '/api/fan?toggle_logic=1', d => 'Logika relay kipas: ' + (d.fanActiveLow ? 'Active-LOW' : 'Active-HIGH')));
-$('bSwap').addEventListener('click', () => act('bSwap', '/api/ultrasonic?swap=1', d => 'Trig D' + d.trigPin + ', Echo D' + d.echoPin));
-$('bScan').addEventListener('click', () => act('bScan', '/api/ultrasonic?scan=1', d => d.result));
-
-/* Navigasi bawah (tab, panah kiri/kanan) */
-const tabs = [...document.querySelectorAll('[role=tab]')];
-function selectTab(tab, focus) {
-  tabs.forEach(t => {
-    const sel = t === tab;
-    t.setAttribute('aria-selected', String(sel));
-    t.tabIndex = sel ? 0 : -1;
-    $(t.getAttribute('aria-controls')).hidden = !sel;
-  });
-  if (focus) tab.focus();
-  window.scrollTo(0, 0);
-}
-tabs.forEach((t, i) => {
-  t.addEventListener('click', () => selectTab(t));
-  t.addEventListener('keydown', e => {
-    const k = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
-    if (k === undefined) return;
-    e.preventDefault();
-    selectTab(tabs[(k + tabs.length) % tabs.length], true);
-  });
-});
-
-/* Alarm suara saat api terdeteksi.
-   Mendukung pemutaran audio MP3 + fallback Web Audio API synthesizer dengan
-   manajemen promise asinkron anti-interupsi dan latch minimal 3.5 detik. */
-const alarm = new Audio('/alarm.mp3');
-alarm.loop = true;
-alarm.preload = 'auto';
-
-let audioCtx = null, synthInterval = 0;
-let alarmUnlocked = false, alarmMuted = false, alarmFire = false;
-let isPlayPending = false, shouldPlay = false;
-let latchUntil = 0, testTimer = 0;
-
-function getAudioCtx() {
-  if (!audioCtx) {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) audioCtx = new AC();
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
-  return audioCtx;
-}
-
-function startSynthAlarm() {
-  if (synthInterval) return;
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  let high = false;
-  synthInterval = setInterval(() => {
+  // Polling Loop
+  async function pollStatus() {
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(high ? 960 : 770, ctx.currentTime);
-      high = !high;
-      gain.gain.setValueAtTime(0.25, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.19);
+      const data = await fetchEndpoint('/api/status');
+      renderDashboard(data);
+      updateConnectionStatus(true, data.ip);
+    } catch (err) {
+      updateConnectionStatus(false, 'Terputus');
+    }
+    setTimeout(pollStatus, CONFIG.POLL_INTERVAL_MS);
+  }
+
+  function updateConnectionStatus(isOnline, label) {
+    const pill = $('connPill');
+    const lbl = $('connLabel');
+    if (isOnline) {
+      pill.classList.remove('disconnected');
+      lbl.textContent = label || '127.0.0.1:8080 (Sim)';
+    } else {
+      pill.classList.add('disconnected');
+      lbl.textContent = 'Terputus (Offline)';
+    }
+  }
+
+  // Render Dashboard
+  function renderDashboard(d) {
+    lastData = d;
+    const mode = d.doorTriggerMode;
+    const isEvacuation = d.doorTriggerMode === 2 && d.flame;
+
+    // 1. Pintu (Door Card)
+    const doorBadge = $('doorIconBadge');
+    const doorSvg = $('doorIconSvg');
+    const statusText = $('doorStatusText');
+    const subText = $('doorSubText');
+    const btnAuto = $('btnDoorAuto');
+    const btnAutoLabel = $('btnDoorAutoLabel');
+    const btnClose = $('btnDoorClose');
+
+    const isOpen = d.door !== 'TERTUTUP';
+
+    if (isOpen) {
+      doorSvg.innerHTML = SVG_DOOR_OPEN;
+      doorBadge.classList.remove('badge-terracotta');
+      doorBadge.classList.add('badge-celadon');
+    } else {
+      doorSvg.innerHTML = SVG_DOOR_CLOSED;
+      doorBadge.classList.remove('badge-celadon');
+      doorBadge.classList.add('badge-terracotta');
+    }
+
+    if (!isCountdownActive) {
+      if (isEvacuation) {
+        statusText.textContent = 'Evakuasi Darurat';
+        subText.textContent = 'Pintu Terbuka Penuh (Bahaya Api)';
+        btnClose.disabled = true;
+      } else if (d.door === 'AUTO_CYCLE') {
+        statusText.textContent = 'Terbuka (Otomatis)';
+        subText.textContent = 'Siklus Buka Terjadwal';
+        btnClose.disabled = false;
+      } else if (isOpen) {
+        statusText.textContent = 'Terbuka';
+        subText.textContent = 'Posisi Terbuka Terus';
+        btnClose.disabled = false;
+      } else {
+        statusText.textContent = 'Tertutup';
+        subText.textContent = 'Standby (Gerak Halus Siap)';
+        btnClose.disabled = false;
+        btnAuto.disabled = false;
+        btnAutoLabel.textContent = 'Buka 2 detik';
+      }
+    }
+
+    // 2. Api (Flame Card)
+    const cardFlame = $('cardFlame');
+    const flameBadge = $('flameBadge');
+    const flameStatus = $('flameStatusText');
+    const flameSub = $('flameSubText');
+    const flameTelem = $('flameTelemetry');
+    const flameBtn = $('btnFlameToggleLogic');
+    const flameSettingDesc = $('settingFlamePolarityDesc');
+
+    if (d.flame) {
+      cardFlame.classList.add('card-danger-active');
+      flameBadge.className = 'icon-badge badge-danger';
+      flameStatus.textContent = 'BAHAYA: API!';
+      flameSub.textContent = 'Peringatan Evakuasi Aktif';
+      playAlarmAudio(true);
+    } else {
+      cardFlame.classList.remove('card-danger-active');
+      flameBadge.className = 'icon-badge badge-celadon';
+      flameStatus.textContent = 'Aman';
+      flameSub.textContent = 'Kondisi Normal Terpantau';
+      playAlarmAudio(false);
+    }
+
+    const flameModeStr = d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW';
+    flameTelem.textContent = `D34: ${d.flameRaw} (${flameModeStr})`;
+    flameBtn.textContent = d.flameActiveHigh ? 'Ganti: Active-LOW' : 'Ganti: Active-HIGH';
+    if (flameSettingDesc) {
+      flameSettingDesc.textContent = d.flameActiveHigh
+        ? 'Active-HIGH (Sinyal 1 = Api, 0 = Aman)'
+        : 'Active-LOW (Sinyal 0 = Api, 1 = Aman)';
+    }
+
+    // 3. Pemicu (Trigger Card)
+    const triggerBadge = $('triggerBadge');
+    const triggerMode = $('triggerModeText');
+    const triggerSub = $('triggerStatusSub');
+    const triggerDetail = $('triggerDetailText');
+
+    const threshold = CONFIG.ULTRASONIC_TRIGGER_CM;
+    const isTriggered = (mode === 3 && d.distance > 0 && d.distance <= threshold);
+
+    triggerMode.textContent = 'Ultrasonik';
+    if (isTriggered) {
+      triggerBadge.classList.add('ripple-active');
+      triggerSub.textContent = 'Objek Terdeteksi!';
+      triggerSub.style.color = 'var(--accent-terracotta)';
+      triggerDetail.textContent = `Jarak ${d.distance} cm mendekati pintu (≤ ${threshold} cm)`;
+    } else {
+      triggerBadge.classList.remove('ripple-active');
+      triggerSub.textContent = 'Standby';
+      triggerSub.style.color = 'var(--text-secondary)';
+      triggerDetail.textContent = `Pintu terbuka saat terdeteksi jarak ≤ ${threshold} cm`;
+    }
+
+    // 4. Jarak (Distance Card & 4-Segment Gauge)
+    const distNum = $('distMetricNum');
+    const distSub = $('distSubLabel');
+    const s1 = $('seg1');
+    const s2 = $('seg2');
+    const s3 = $('seg3');
+    const s4 = $('seg4');
+
+    const dist = d.distance;
+    distNum.textContent = dist > 0 ? dist : '--';
+
+    // Reset gauge segments
+    [s1, s2, s3, s4].forEach(el => {
+      el.className = 'segment';
+    });
+
+    if (dist <= 0) {
+      distSub.textContent = 'Status: Di Luar Jangkauan';
+    } else if (dist <= threshold) {
+      s1.classList.add('active-1');
+      distSub.textContent = 'Status: Sangat Dekat (Pemicu Aktif)';
+    } else if (dist <= 35) {
+      s1.classList.add('active-1');
+      s2.classList.add('active-2');
+      distSub.textContent = 'Status: Mendekat';
+    } else if (dist <= 65) {
+      s1.classList.add('active-1');
+      s2.classList.add('active-2');
+      s3.classList.add('active-3');
+      distSub.textContent = 'Status: Sedang';
+    } else {
+      s1.classList.add('active-1');
+      s2.classList.add('active-2');
+      s3.classList.add('active-3');
+      s4.classList.add('active-4');
+      distSub.textContent = 'Status: Standby (Jauh)';
+    }
+
+    // 5. Suhu Ruang & Kelembaban (DHT11 Card)
+    const tempNum = $('tempMetricNum');
+    const tempFill = $('tempProgressFill');
+    const humText = $('humText');
+
+    if (d.tempValid && typeof d.temp === 'number') {
+      tempNum.textContent = d.temp.toFixed(1);
+      // Range 15C to 45C
+      const percent = Math.min(100, Math.max(0, ((d.temp - 15) / 30) * 100));
+      tempFill.style.width = `${percent}%`;
+      humText.textContent = `Lembab: ${d.humidity.toFixed(0)}%`;
+    } else {
+      tempNum.textContent = '--';
+      tempFill.style.width = '0%';
+      humText.textContent = d.dhtStatus || 'Menunggu sensor...';
+    }
+  }
+
+  // Door Control Actions
+  $('btnDoorAuto').addEventListener('click', async () => {
+    if (isCountdownActive) return;
+    isCountdownActive = true;
+    const btn = $('btnDoorAuto');
+    const label = $('btnDoorAutoLabel');
+    const statusText = $('doorStatusText');
+    const subText = $('doorSubText');
+
+    btn.disabled = true;
+    statusText.textContent = 'Terbuka (2d...)';
+    subText.textContent = 'Pintu Terbuka Otomatis';
+    label.textContent = 'Menghitung 2s...';
+
+    try {
+      await fetchEndpoint('/api/door?action=auto');
     } catch (e) {}
-  }, 200);
-}
 
-function stopSynthAlarm() {
-  if (synthInterval) {
-    clearInterval(synthInterval);
-    synthInterval = 0;
-  }
-}
-
-function unlockAudio() {
-  getAudioCtx();
-  if (!alarmUnlocked) {
-    alarm.muted = true;
-    alarm.play().then(() => {
-      if (!shouldPlay) {
-        alarm.pause();
-        alarm.currentTime = 0;
+    let remaining = 2;
+    countdownTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        statusText.textContent = `Terbuka (${remaining}d...)`;
+        label.textContent = `Menghitung ${remaining}s...`;
+      } else {
+        clearInterval(countdownTimer);
+        isCountdownActive = false;
+        statusText.textContent = 'Menutup';
+        subText.textContent = 'Kembali Tertutup Halus';
+        label.textContent = 'Buka 2 detik';
+        btn.disabled = false;
       }
-      alarm.muted = false;
-      alarmUnlocked = true;
-    }).catch(() => {
-      alarm.muted = false;
+    }, 1000);
+  });
+
+  $('btnDoorOpen').addEventListener('click', async () => {
+    if (isCountdownActive) {
+      clearInterval(countdownTimer);
+      isCountdownActive = false;
+    }
+    try {
+      const d = await fetchEndpoint('/api/door?action=open');
+      renderDashboard(d);
+    } catch (e) {}
+  });
+
+  $('btnDoorClose').addEventListener('click', async () => {
+    if (isCountdownActive) {
+      clearInterval(countdownTimer);
+      isCountdownActive = false;
+    }
+    try {
+      const d = await fetchEndpoint('/api/door?action=close');
+      renderDashboard(d);
+    } catch (e) {}
+  });
+
+  // Flame Logic Inversion
+  async function toggleFlameLogic() {
+    try {
+      const d = await fetchEndpoint('/api/flame?toggle_logic=1');
+      renderDashboard(d);
+    } catch (e) {}
+  }
+
+  $('btnFlameToggleLogic').addEventListener('click', toggleFlameLogic);
+  $('btnSettingFlameToggle').addEventListener('click', toggleFlameLogic);
+
+  // Ultrasonic Pin Swap
+  $('btnSettingUsSwap').addEventListener('click', async () => {
+    try {
+      const d = await fetchEndpoint('/api/ultrasonic?swap=1');
+      const desc = $('settingUsPinDesc');
+      if (desc && d) {
+        desc.textContent = `Trig D${d.trigPin}, Echo D${d.echoPin}`;
+      }
+      renderDashboard(d);
+    } catch (e) {}
+  });
+
+  // Threshold Configuration
+  const thresholdInput = $('settingThreshold');
+  if (thresholdInput) {
+    thresholdInput.addEventListener('change', e => {
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val) && val >= 5 && val <= 50) {
+        CONFIG.ULTRASONIC_TRIGGER_CM = val;
+      }
     });
   }
-}
-['pointerdown', 'keydown', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
 
-function soundStart() {
-  shouldPlay = true;
-  if (alarmMuted) return;
-  getAudioCtx();
+  // Tab Navigation Handling
+  const tabs = document.querySelectorAll('.nav-tab');
+  const panels = document.querySelectorAll('.view-panel');
 
-  if (!isPlayPending && alarm.paused) {
-    isPlayPending = true;
-    alarm.loop = true;
-    alarm.play().then(() => {
-      isPlayPending = false;
-      if (!shouldPlay) {
-        alarm.pause();
-        alarm.currentTime = 0;
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+
+      tab.classList.add('active');
+      const targetId = tab.getAttribute('data-target');
+      const targetPanel = $(targetId);
+      if (targetPanel) {
+        targetPanel.classList.add('active');
       }
-      stopSynthAlarm();
-      alarmLabel();
-    }).catch(() => {
-      isPlayPending = false;
-      // Jika MP3 gagal / belum ter-buffer, bunyikan synthesizer bawaan browser
-      if (shouldPlay && !alarmMuted) startSynthAlarm();
-      alarmLabel();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
-  }
-}
+  });
 
-function soundStop() {
-  shouldPlay = false;
-  stopSynthAlarm();
-  if (!isPlayPending && !alarm.paused) {
-    alarm.pause();
-    alarm.currentTime = 0;
-  }
-  alarmLabel();
-}
+  // Audio Playback Handling
+  const audio = $('audioAlarm');
 
-function alarmLabel() {
-  const isPlaying = !alarm.paused || synthInterval !== 0;
-  text('bAlarm', isPlaying ? 'Matikan' : 'Bunyikan');
-  attr('bAlarm', 'aria-label', isPlaying ? 'Matikan alarm' : 'Bunyikan alarm');
-}
-alarm.addEventListener('play', alarmLabel);
-alarm.addEventListener('pause', alarmLabel);
-
-function alarmUpdate(fire) {
-  const now = Date.now();
-  if (fire) {
-    latchUntil = now + 3500; // Tahan alarm berbunyi minimal 3.5 detik
-  }
-  const active = fire || (now < latchUntil);
-  alarmFire = active;
-  put('bAlarm:h', active, x => { $('bAlarm').hidden = !x; });
-
-  if (active && !alarmMuted) {
-    soundStart();
-  } else if (!active) {
-    alarmMuted = false;
-    if (!testTimer) {
-      soundStop();
+  function unlockAudio() {
+    if (!isAudioUnlocked && audio) {
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        isAudioUnlocked = true;
+      }).catch(() => {});
     }
   }
-  alarmLabel();
-}
 
-$('bAlarm').addEventListener('click', () => {
-  const isPlaying = !alarm.paused || synthInterval !== 0;
-  if (isPlaying) {
-    alarmMuted = true;
-    latchUntil = 0;
-    soundStop();
-    toast('Alarm dimatikan');
-  } else {
-    alarmMuted = false;
-    latchUntil = Date.now() + 4000;
-    soundStart();
-    toast('Alarm dibunyikan');
+  window.addEventListener('click', unlockAudio, { once: true });
+  window.addEventListener('touchstart', unlockAudio, { once: true });
+
+  function playAlarmAudio(shouldPlay) {
+    if (!audio) return;
+    if (shouldPlay) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
   }
-});
 
-$('bAlarmTest').addEventListener('click', () => {
-  if (alarmFire) return;
-  clearTimeout(testTimer);
-  alarmMuted = false;
-  latchUntil = Date.now() + 4200;
-  soundStart();
-  testTimer = setTimeout(() => {
-    testTimer = 0;
-    latchUntil = 0;
-    soundStop();
-  }, 4200);
-});
+  $('btnAlarmTest').addEventListener('click', () => {
+    if (!audio) return;
+    playAlarmAudio(true);
+    setTimeout(() => playAlarmAudio(false), 3000);
+  });
 
-sync();
-pollLoop();
+  // Initialize Polling
+  pollStatus();
+
 })();
 
 )rawliteral";

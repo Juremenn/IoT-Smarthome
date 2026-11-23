@@ -49,7 +49,7 @@ class SmartHomeState:
         self.trigPin = 4
         self.echoPin = 5
         self.distance = 25
-        self.maxDistance = 10
+        self.maxDistance = 15
         self.rawEcho = 1450
         
         # DHT11
@@ -141,45 +141,45 @@ SIMULATOR_DRAWER_HTML = """
   bottom: 20px;
   right: 20px;
   z-index: 99999;
-  background: #1F2328;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.2);
+  background: #2B1D16;
+  color: #F6F2EA;
+  border: 1px solid rgba(200, 176, 138, 0.6);
   border-radius: 30px;
-  padding: 10px 16px;
-  font-family: system-ui, -apple-system, sans-serif;
+  padding: 10px 18px;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 14px rgba(43, 29, 22, 0.3);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.15s ease, background 0.2s ease;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
 }
-#sim-toggle:hover { background: #2f363d; transform: scale(1.03); }
+#sim-toggle:hover { background: #3B281E; border-color: #C8B08A; transform: scale(1.02); }
 #sim-toggle .sim-dot {
   width: 9px;
   height: 9px;
-  background: #28a745;
+  background: #10B981;
   border-radius: 50%;
-  box-shadow: 0 0 6px #28a745;
+  box-shadow: 0 0 8px #10B981;
 }
 
 #sim-panel {
   position: fixed;
   bottom: 74px;
   right: 20px;
-  width: 320px;
+  width: 330px;
   max-width: calc(100vw - 40px);
   max-height: 80vh;
   overflow-y: auto;
-  background: #ffffff;
-  color: #24292f;
-  border: 1px solid #d0d7de;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-  font-family: system-ui, -apple-system, sans-serif;
-  padding: 16px;
+  background: #FCFBF7;
+  color: #3B281E;
+  border: 1px solid #C8B08A;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(59, 40, 30, 0.15);
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  padding: 18px;
   z-index: 99999;
   display: none;
 }
