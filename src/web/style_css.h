@@ -146,4 +146,5 @@ button.hit:active:not(:disabled) .ic{transform:scale(.94)}
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
 }
+
 )rawliteral";

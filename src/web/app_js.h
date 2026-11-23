@@ -399,4 +399,5 @@ $('bAlarmTest').addEventListener('click', () => {
 sync();
 pollLoop();
 })();
+
 )rawliteral";

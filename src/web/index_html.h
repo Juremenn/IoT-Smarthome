@@ -2,7 +2,8 @@
 #include <pgmspace.h>
 
 // Halaman dashboard. Disajikan di "/" oleh web_server.cpp.
-const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="utf-8">
@@ -155,4 +156,5 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <script src="/app.js" defer></script>
 </body>
 </html>
+
 )rawliteral";

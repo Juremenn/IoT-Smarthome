@@ -306,6 +306,30 @@ IoT-Smarthome/
    ```
 4. Hubungkan perangkat (HP/Laptop) ke SSID Wi-Fi **`RumahJoglo-SmartHome`**, lalu buka **`http://192.168.4.1`** di browser.
 
+### Pengembangan & Redesign Dashboard Tanpa ESP32 (Local Mock Server)
+
+Jika sedang tidak memegang perangkat ESP32 fisik, Anda dapat menjalankan mock server lokal dengan simulator hardware terintegrasi untuk mendesain ulang antarmuka web:
+
+1. **Jalankan Server Lokal & Simulator:**
+   ```bash
+   python tools/dev_server.py
+   ```
+2. Buka browser di **`http://localhost:8080`**.
+   - Tampilan dashboard web akan aktif dan terhubung ke simulasi firmware.
+   - Panel **ESP32 Simulator** mengambang di pojok kanan bawah memungkinkan Anda mengatur slider suhu DHT11, kelembaban, jarak ultrasonik, simulasi sentuh D4, dan pemicu api darurat.
+3. **Ubah Desain Dashboard:**
+   - Edit langsung file di folder [`web_src/`](web_src/):
+     - `web_src/index.html` : Struktur markup dashboard
+     - `web_src/style.css`  : Gaya visual, tema warna, dan layout
+     - `web_src/app.js`     : Logika interaksi frontend
+   - Cukup refresh browser untuk melihat hasil perubahan desain secara instan.
+4. **Sinkronkan ke Firmware ESP32:**
+   Setelah selesai mendesain dan siap mengunggah ke ESP32, kemas kembali file ke C++ header:
+   ```bash
+   python tools/sync_to_esp.py
+   ```
+   *File `src/web/*.h` akan otomatis diperbarui dengan format PROGMEM.*
+
 ### Referensi Cepat Endpoint HTTP API (`GET`)
 
 | Endpoint | Parameter Query | Respons / Efek |
