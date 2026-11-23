@@ -438,6 +438,20 @@ class MockServerHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
+        elif path == "/joglo.png":
+            img_file = WEB_SRC_DIR / "joglo.png"
+            if img_file.exists():
+                data = img_file.read_bytes()
+            else:
+                data = b""
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         # 2. ESP32 REST API
         elif path == "/api/status":
             self.send_json(state.to_dict())

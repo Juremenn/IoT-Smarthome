@@ -14,11 +14,11 @@ const char STYLE_CSS[] PROGMEM = R"rawliteral(
    ========================================================================== */
 
 :root {
-  --bg-canvas: #F6F2EA;
-  --bg-card: #FCFBF7;
-  --bg-surface-muted: #EFE9DD;
-  --border-brass: #C8B08A;
-  --border-brass-muted: rgba(200, 176, 138, 0.55);
+  --bg-canvas: #F8F6F1;
+  --bg-card: #FFFFFF;
+  --bg-surface-muted: #F2EEE5;
+  --border-brass: #D4BE98;
+  --border-brass-muted: rgba(212, 190, 152, 0.45);
   --border-brass-hover: #C8B08A;
   --text-primary: #121212;
   --text-secondary: #374151;
@@ -64,44 +64,6 @@ body {
   padding-bottom: 96px;
 }
 
-/* Subtle Batik Kawung Background Texture */
-.kawung-texture {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg width='48' height='48' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 0C16 12 16 36 24 48C32 36 32 12 24 0Z' fill='%233B281E'/%3E%3Cpath d='M0 24C12 16 36 16 48 24C36 32 12 32 0 24Z' fill='%233B281E'/%3E%3Ccircle cx='24' cy='24' r='3' fill='%233B281E'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-}
-
-/* Gunungan (Kayon) Corner Silhouettes */
-.gunungan-frame {
-  position: fixed;
-  top: 0;
-  z-index: 1;
-  pointer-events: none;
-  width: 140px;
-  height: 200px;
-  opacity: 0.18;
-  transition: opacity var(--transition);
-}
-
-.gunungan-left {
-  left: 0;
-}
-
-.gunungan-right {
-  right: 0;
-  transform: scaleX(-1);
-}
-
-@media (max-width: 768px) {
-  .gunungan-frame {
-    display: none;
-  }
-}
-
 /* Main Container */
 .app-container {
   position: relative;
@@ -125,16 +87,23 @@ body {
 .brand-wrapper {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .brand-icon {
-  width: 36px;
-  height: 36px;
+  width: 58px;
+  height: 58px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.brand-joglo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(59, 40, 30, 0.12));
 }
 
 .brand-title {

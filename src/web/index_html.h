@@ -18,47 +18,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
 
-<!-- Batik Kawung Background Texture -->
-<div class="kawung-texture" aria-hidden="true"></div>
-
-<!-- Gunungan Corner Silhouettes -->
-<svg class="gunungan-frame gunungan-left" viewBox="0 0 100 150" fill="none" stroke="#C8B08A" stroke-width="1.2" aria-hidden="true">
-  <path d="M50 5 C50 5, 20 50, 10 90 C5 110, 10 135, 20 145 L80 145 C90 135, 95 110, 90 90 C80 50, 50 5, 50 5 Z"/>
-  <path d="M50 15 L50 145"/>
-  <path d="M50 45 C35 60, 25 75, 25 95"/>
-  <path d="M50 45 C65 60, 75 75, 75 95"/>
-  <path d="M50 75 C30 90, 20 105, 22 125"/>
-  <path d="M50 75 C70 90, 80 105, 78 125"/>
-  <rect x="35" y="115" width="30" height="30" rx="3"/>
-  <circle cx="50" cy="30" r="4"/>
-</svg>
-
-<svg class="gunungan-frame gunungan-right" viewBox="0 0 100 150" fill="none" stroke="#C8B08A" stroke-width="1.2" aria-hidden="true">
-  <path d="M50 5 C50 5, 20 50, 10 90 C5 110, 10 135, 20 145 L80 145 C90 135, 95 110, 90 90 C80 50, 50 5, 50 5 Z"/>
-  <path d="M50 15 L50 145"/>
-  <path d="M50 45 C35 60, 25 75, 25 95"/>
-  <path d="M50 45 C65 60, 75 75, 75 95"/>
-  <path d="M50 75 C30 90, 20 105, 22 125"/>
-  <path d="M50 75 C70 90, 80 105, 78 125"/>
-  <rect x="35" y="115" width="30" height="30" rx="3"/>
-  <circle cx="50" cy="30" r="4"/>
-</svg>
-
 <div class="app-container">
 
   <!-- Header Bar -->
   <header class="header-bar">
     <div class="brand-wrapper">
       <div class="brand-icon" aria-hidden="true">
-        <!-- Minimalist Yogyakarta Joglo Roof SVG -->
-        <svg viewBox="0 0 36 36" width="36" height="36" fill="none" stroke="#111827" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 28 L11 20 L15 9 L21 9 L25 20 L32 28 Z"/>
-          <path d="M11 20 L25 20"/>
-          <path d="M15 9 L21 9"/>
-          <path d="M14 28 L14 20"/>
-          <path d="M22 28 L22 20"/>
-          <path d="M2 28 L34 28"/>
-        </svg>
+        <img src="/joglo.png" alt="Rumah Joglo" class="brand-joglo-img" width="56" height="56">
       </div>
       <div>
         <h1 class="brand-title">Rumah Joglo</h1>

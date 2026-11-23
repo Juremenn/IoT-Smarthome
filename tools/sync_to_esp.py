@@ -43,5 +43,26 @@ def sync():
         dst.write_text(header_content, encoding="utf-8")
         print(f"Synced: {src} -> {dst} ({len(raw_content)} bytes)")
 
+    # Sync binary joglo.png -> src/web/joglo_png.h
+    joglo_src = Path("web_src/joglo.png")
+    joglo_dst = Path("src/web/joglo_png.h")
+    if joglo_src.exists():
+        data = joglo_src.read_bytes()
+        hex_items = [f"0x{b:02x}" for b in data]
+        lines = []
+        for i in range(0, len(hex_items), 20):
+            lines.append("  " + ",".join(hex_items[i:i+20]) + ",")
+        
+        c_code = (
+            "#pragma once\n"
+            "#include <pgmspace.h>\n"
+            "#include <stddef.h>\n\n"
+            f"const size_t JOGLO_PNG_LEN = {len(data)};\n"
+            "const uint8_t JOGLO_PNG[] PROGMEM = {\n"
+            + "\n".join(lines) + "\n};\n"
+        )
+        joglo_dst.write_text(c_code, encoding="utf-8")
+        print(f"Synced: {joglo_src} -> {joglo_dst} ({len(data)} bytes)")
+
 if __name__ == "__main__":
     sync()
