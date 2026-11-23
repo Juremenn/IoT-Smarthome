@@ -539,69 +539,154 @@ button:disabled {
   display: block;
 }
 
-/* Pengaturan & Info Panels */
-.settings-list, .info-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+/* ==========================================================================
+   INFO PINOUT SPECIFICATION GRID
+   ========================================================================== */
 
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-brass-muted);
-  border-radius: var(--radius-btn);
-}
-
-.setting-info h4 {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
-}
-
-.setting-info p {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.pin-table {
-  width: 100%;
-  border-collapse: collapse;
+.pinout-summary {
   background-color: var(--bg-card);
   border: 1px solid var(--border-brass-muted);
   border-radius: var(--radius-card);
-  overflow: hidden;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
 }
 
-.pin-table th, .pin-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-brass-muted);
-  font-size: 13px;
-}
-
-.pin-table th {
-  background-color: var(--bg-surface-muted);
+.pinout-summary-title {
   font-family: var(--font-display);
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #111827;
+  line-height: 1.2;
 }
 
-.pin-table td code {
-  font-family: var(--font-mono);
-  background-color: var(--bg-canvas);
-  padding: 2px 6px;
-  border-radius: 4px;
+.pinout-summary-desc {
+  font-size: 13px;
+  color: #4B5563;
+  margin-top: 4px;
+}
+
+.summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: var(--bg-surface-muted);
   border: 1px solid var(--border-brass-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.pinout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .pinout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pinout-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-brass-muted);
+  border-radius: var(--radius-card);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+.pinout-card:hover {
+  border-color: var(--border-brass-hover);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.pinout-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-brass-muted);
+}
+
+.pinout-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #111827;
+}
+
+.pinout-title-wrap svg {
+  color: var(--accent-terracotta);
+  flex-shrink: 0;
+}
+
+.gpio-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background-color: var(--bg-surface-muted);
+  border: 1px solid var(--border-brass-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.spec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed rgba(212, 190, 152, 0.4);
+}
+
+.spec-row:last-child {
+  border-bottom: none;
+}
+
+.spec-key {
+  color: #4B5563;
+  font-weight: 500;
+}
+
+.spec-val {
+  color: #111827;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-align: right;
 }
 
 /* Responsive Breakpoints */

@@ -51,10 +51,12 @@ def main():
     print(f" [PASS] GET /api/door?action=auto -> door: {data['door']}")
 
     # 5. Test /api/fan toggle
+    st, ct, body = get("/api/status")
+    prev_fan = json.loads(body.decode("utf-8"))["fan"]
     st, ct, body = get("/api/fan?toggle=1")
     data = json.loads(body.decode("utf-8"))
-    assert data["fan"] is True
-    print(f" [PASS] GET /api/fan?toggle=1 -> fan: {data['fan']}")
+    assert data["fan"] != prev_fan
+    print(f" [PASS] GET /api/fan?toggle=1 -> fan changed from {prev_fan} to {data['fan']}")
 
     # 6. Test /api/simulator/update
     st, ct, body = post("/api/simulator/update", {"temp": 35.5, "flame": True})
