@@ -40,7 +40,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <!-- Row 1, Card 1: Pintu (Col-Span-2) -->
       <section class="card col-span-2" id="cardDoor" aria-labelledby="doorLabel">
         <div class="card-header">
-          <span class="card-label" id="doorLabel">Pintu Utama</span>
+          <span class="card-label" id="doorLabel">Pintu</span>
           <span class="card-sub-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
           </span>
@@ -56,8 +56,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
           <div class="status-meta">
             <span class="status-main" id="doorStatusText">Tertutup</span>
-            <span class="status-sub" id="doorSubText">Mode Otomasi Aktif</span>
-            <span class="telemetry-mono" id="doorTelemetry">Servo GPIO D13: 180°</span>
+            <span class="status-sub" id="doorSubText">Standby</span>
+            <span class="telemetry-mono" id="doorTelemetry">GPIO 13 &middot; 180&deg;</span>
           </div>
         </div>
 
@@ -89,8 +89,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
           <div class="status-meta">
             <span class="status-main" id="flameStatusText">Aman</span>
-            <span class="status-sub" id="flameSubText">Kondisi Normal</span>
-            <span class="telemetry-mono" id="flameTelemetry">D34: 0 (Active-HIGH)</span>
+            <span class="status-sub" id="flameSubText">Normal</span>
+            <span class="telemetry-mono" id="flameTelemetry">D34 &middot; Active-HIGH</span>
           </div>
         </div>
 
@@ -122,12 +122,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <div class="status-meta">
             <span class="status-main" id="triggerModeText">Ultrasonik</span>
             <span class="status-sub" id="triggerStatusSub">Standby</span>
-            <span class="telemetry-mono" id="triggerPinInfo">Trig D4, Echo D5</span>
+            <span class="telemetry-mono" id="triggerPinInfo">D4 (Trig) &middot; D5 (Echo)</span>
           </div>
         </div>
 
-        <div class="status-sub" id="triggerDetailText" style="margin-top: 10px;">
-          Pintu terbuka saat terdeteksi jarak ≤ 15 cm
+        <div class="status-sub" id="triggerDetailText" style="margin-top: 8px;">
+          Pemicu &le; 15 cm
         </div>
       </section>
 
@@ -154,7 +154,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
 
         <div class="status-sub" id="distSubLabel">
-          Status: Standby
+          Standby
         </div>
       </section>
 
@@ -179,7 +179,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         <div class="status-sub" id="humSubLabel" style="display: flex; align-items: center; gap: 4px;">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
-          <span id="humText">Lembab: 64%</span>
+          <span id="humText">Lembab 64%</span>
         </div>
       </section>
 
@@ -203,14 +203,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
           <div>
             <h2 class="hero-title">Arsitektur &amp; Logika Otomasi</h2>
-            <p class="hero-desc">Diagram alur kendali otonom firmware ESP32 dalam merespons sensor lingkungan dan akses fisik Rumah Joglo.</p>
           </div>
         </div>
 
         <div class="hero-chips">
           <span class="hero-chip">ESP32 DevKit V1 &middot; <span class="mono-token">240 MHz</span></span>
-          <span class="hero-chip">Wi-Fi AP: <span class="mono-token">RumahJoglo-SmartHome</span></span>
-          <span class="hero-chip">Suplai: <span class="mono-token">5V DC Regulator</span></span>
+          <span class="hero-chip">Wi-Fi AP: <span class="mono-token">RumahJoglo</span></span>
+          <span class="hero-chip">Suplai: <span class="mono-token">5V DC</span></span>
           <span class="hero-chip">OLED I2C: <span class="mono-token">D21/D22</span></span>
         </div>
       </div>
@@ -239,10 +238,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
             </div>
 
-            <div class="flow-connector" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
+            <div class="flow-conduit flow-conduit-access" id="conduit1A" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
               </svg>
             </div>
 
@@ -267,14 +268,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
             </div>
 
-            <div class="flow-connector" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
+            <div class="flow-conduit flow-conduit-access" id="conduit1B" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
               </svg>
             </div>
 
-            <div class="flow-node">
+            <div class="flow-node" id="flowNodeServo">
               <div class="flow-node-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M14 4h4a2 2 0 0 1 2 2v14"/>
@@ -310,10 +313,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
             </div>
 
-            <div class="flow-connector" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
+            <div class="flow-conduit flow-conduit-danger" id="conduit2A" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
               </svg>
             </div>
 
@@ -330,14 +335,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
             </div>
 
-            <div class="flow-connector" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
+            <div class="flow-conduit flow-conduit-danger" id="conduit2B" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
               </svg>
             </div>
 
-            <div class="flow-node flow-node-danger">
+            <div class="flow-node flow-node-danger" id="flowNodeEvac">
               <div class="flow-node-icon icon-danger" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -375,12 +382,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <span class="gpio-badge">GPIO 12</span>
           </div>
         </div>
-        <div class="pinout-card-body">
-          <p>Menggerakkan pintu utama secara halus dengan kurva non-blocking agar tidak menyentak struktur kayu miniatur Rumah Joglo.</p>
-        </div>
         <div class="spec-chips-footer">
           <span class="spec-chip">PWM <span class="mono-token">50 Hz</span></span>
-          <span class="spec-chip">Sudut <span class="mono-token">0° - 180°</span></span>
+          <span class="spec-chip">Sudut <span class="mono-token">0&deg; - 180&deg;</span></span>
           <span class="spec-chip">Siklus <span class="mono-token">5s</span></span>
         </div>
       </div>
@@ -397,9 +401,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <div class="gpio-badges">
             <span class="gpio-badge">GPIO 34</span>
           </div>
-        </div>
-        <div class="pinout-card-body">
-          <p>Memantau radiasi api optik 5 arah di sekeliling pendopo untuk memicu sirine evakuasi dan membuka pintu seketika saat bahaya.</p>
         </div>
         <div class="spec-chips-footer">
           <span class="spec-chip">DO <span class="mono-token">LM393</span></span>
@@ -424,9 +425,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <span class="gpio-badge">Echo D5</span>
           </div>
         </div>
-        <div class="pinout-card-body">
-          <p>Mendeteksi kedatangan tamu di depan regol miniatur dan memicu servo membuka pintu otomatis saat objek mendekat.</p>
-        </div>
         <div class="spec-chips-footer">
           <span class="spec-chip">Ambang <span class="mono-token">&le; 15 cm</span></span>
           <span class="spec-chip">Sonar <span class="mono-token">40 kHz</span></span>
@@ -447,12 +445,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <span class="gpio-badge">GPIO 27</span>
           </div>
         </div>
-        <div class="pinout-card-body">
-          <p>Memantau iklim mikro dan kenyamanan ruang tengah Joglo secara berkala tanpa mengganggu siklus pulsa PWM servo.</p>
-        </div>
         <div class="spec-chips-footer">
           <span class="spec-chip"><span class="mono-token">Single-Wire</span></span>
-          <span class="spec-chip">Rentang <span class="mono-token">0° - 50 °C</span></span>
+          <span class="spec-chip">Rentang <span class="mono-token">0&deg; - 50 &deg;C</span></span>
           <span class="spec-chip">Lembab <span class="mono-token">20 - 90% RH</span></span>
         </div>
       </div>
