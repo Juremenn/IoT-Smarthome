@@ -91,26 +91,26 @@
     if (!isCountdownActive) {
       if (isEvacuation) {
         statusText.textContent = 'Evakuasi Darurat';
-        subText.textContent = 'Pintu Terbuka Penuh (Bahaya Api)';
+        subText.textContent = 'Bahaya Api';
         btnClose.disabled = true;
       } else if (d.door === 'AUTO_CYCLE') {
         statusText.textContent = 'Terbuka (Otomatis)';
-        subText.textContent = 'Siklus Buka Terjadwal';
+        subText.textContent = 'Otomatis';
         btnClose.disabled = false;
       } else if (isOpen) {
         statusText.textContent = 'Terbuka';
-        subText.textContent = 'Posisi Terbuka Terus';
+        subText.textContent = 'Terbuka Terus';
         btnClose.disabled = false;
       } else {
         statusText.textContent = 'Tertutup';
-        subText.textContent = 'Standby (Gerak Halus Siap)';
+        subText.textContent = 'Standby';
         btnClose.disabled = false;
         btnAuto.disabled = false;
         btnAutoLabel.textContent = 'Buka 2 detik';
       }
     }
 
-    // 2. Api (Flame Card)
+    // 2. Api (Flame Card & Flow 2 Animation)
     const cardFlame = $('cardFlame');
     const flameBadge = $('flameBadge');
     const flameStatus = $('flameStatusText');
@@ -119,17 +119,27 @@
     const flameBtn = $('btnFlameToggleLogic');
     const flameSettingDesc = $('settingFlamePolarityDesc');
 
+    const conduit2A = $('conduit2A');
+    const conduit2B = $('conduit2B');
+    const flowNodeEvac = $('flowNodeEvac');
+
     if (d.flame) {
       cardFlame.classList.add('card-danger-active');
       flameBadge.className = 'icon-badge badge-danger';
       flameStatus.textContent = 'BAHAYA: API!';
-      flameSub.textContent = 'Peringatan Evakuasi Aktif';
+      flameSub.textContent = 'Bahaya Api';
+      if (conduit2A) conduit2A.classList.add('conduit-danger-active');
+      if (conduit2B) conduit2B.classList.add('conduit-danger-active');
+      if (flowNodeEvac) flowNodeEvac.classList.add('node-danger-active');
       playAlarmAudio(true);
     } else {
       cardFlame.classList.remove('card-danger-active');
       flameBadge.className = 'icon-badge badge-celadon';
       flameStatus.textContent = 'Aman';
-      flameSub.textContent = 'Kondisi Normal Terpantau';
+      flameSub.textContent = 'Normal';
+      if (conduit2A) conduit2A.classList.remove('conduit-danger-active');
+      if (conduit2B) conduit2B.classList.remove('conduit-danger-active');
+      if (flowNodeEvac) flowNodeEvac.classList.remove('node-danger-active');
       playAlarmAudio(false);
     }
 
@@ -138,15 +148,18 @@
     flameBtn.textContent = d.flameActiveHigh ? 'Ganti: Active-LOW' : 'Ganti: Active-HIGH';
     if (flameSettingDesc) {
       flameSettingDesc.textContent = d.flameActiveHigh
-        ? 'Active-HIGH (Sinyal 1 = Api, 0 = Aman)'
-        : 'Active-LOW (Sinyal 0 = Api, 1 = Aman)';
+        ? 'Active-HIGH (1: Api, 0: Aman)'
+        : 'Active-LOW (0: Api, 1: Aman)';
     }
 
-    // 3. Pemicu (Trigger Card)
+    // 3. Pemicu (Trigger Card & Flow 1 Animation)
     const triggerBadge = $('triggerBadge');
     const triggerMode = $('triggerModeText');
     const triggerSub = $('triggerStatusSub');
     const triggerDetail = $('triggerDetailText');
+    const conduit1A = $('conduit1A');
+    const conduit1B = $('conduit1B');
+    const flowNodeServo = $('flowNodeServo');
 
     const threshold = CONFIG.ULTRASONIC_TRIGGER_CM;
     const isTriggered = (mode === 3 && d.distance > 0 && d.distance <= threshold);
@@ -154,14 +167,20 @@
     triggerMode.textContent = 'Ultrasonik';
     if (isTriggered) {
       triggerBadge.classList.add('ripple-active');
-      triggerSub.textContent = 'Objek Terdeteksi!';
+      triggerSub.textContent = 'Objek Terdeteksi';
       triggerSub.style.color = 'var(--accent-terracotta)';
-      triggerDetail.textContent = `Jarak ${d.distance} cm mendekati pintu (≤ ${threshold} cm)`;
+      triggerDetail.textContent = `Terdeteksi ${d.distance} cm`;
+      if (conduit1A) conduit1A.classList.add('conduit-triggered');
+      if (conduit1B) conduit1B.classList.add('conduit-triggered');
+      if (flowNodeServo) flowNodeServo.classList.add('node-triggered');
     } else {
       triggerBadge.classList.remove('ripple-active');
       triggerSub.textContent = 'Standby';
       triggerSub.style.color = 'var(--text-secondary)';
-      triggerDetail.textContent = `Pintu terbuka saat terdeteksi jarak ≤ ${threshold} cm`;
+      triggerDetail.textContent = `Pemicu \u2264 ${threshold} cm`;
+      if (conduit1A) conduit1A.classList.remove('conduit-triggered');
+      if (conduit1B) conduit1B.classList.remove('conduit-triggered');
+      if (flowNodeServo) flowNodeServo.classList.remove('node-triggered');
     }
 
     // 4. Jarak (Distance Card & 4-Segment Gauge)
@@ -181,25 +200,25 @@
     });
 
     if (dist <= 0) {
-      distSub.textContent = 'Status: Di Luar Jangkauan';
+      distSub.textContent = 'Di Luar Jangkauan';
     } else if (dist <= threshold) {
       s1.classList.add('active-1');
-      distSub.textContent = 'Status: Sangat Dekat (Pemicu Aktif)';
+      distSub.textContent = 'Sangat Dekat';
     } else if (dist <= 35) {
       s1.classList.add('active-1');
       s2.classList.add('active-2');
-      distSub.textContent = 'Status: Mendekat';
+      distSub.textContent = 'Mendekat';
     } else if (dist <= 65) {
       s1.classList.add('active-1');
       s2.classList.add('active-2');
       s3.classList.add('active-3');
-      distSub.textContent = 'Status: Sedang';
+      distSub.textContent = 'Sedang';
     } else {
       s1.classList.add('active-1');
       s2.classList.add('active-2');
       s3.classList.add('active-3');
       s4.classList.add('active-4');
-      distSub.textContent = 'Status: Standby (Jauh)';
+      distSub.textContent = 'Standby';
     }
 
     // 5. Suhu Ruang & Kelembaban (DHT11 Card)
@@ -212,7 +231,7 @@
       // Range 15C to 45C
       const percent = Math.min(100, Math.max(0, ((d.temp - 15) / 30) * 100));
       tempFill.style.width = `${percent}%`;
-      humText.textContent = `Lembab: ${d.humidity.toFixed(0)}%`;
+      humText.textContent = `Lembab ${d.humidity.toFixed(0)}%`;
     } else {
       tempNum.textContent = '--';
       tempFill.style.width = '0%';
