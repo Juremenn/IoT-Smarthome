@@ -219,9 +219,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         
         <!-- Flow 1: Akses Otomatis -->
         <div class="flow-pathway">
-          <div class="flow-pathway-badge flow-badge-access">
-            <span class="badge-dot"></span>
-            <span>Flow 1: Akses Otomatis</span>
+          <div class="flow-pathway-header">
+            <span class="flow-pathway-title">Akses Pintu Otomatis</span>
           </div>
           <div class="flow-nodes">
             <div class="flow-node">
@@ -296,9 +295,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
         <!-- Flow 2: Keselamatan -->
         <div class="flow-pathway">
-          <div class="flow-pathway-badge flow-badge-safety">
-            <span class="badge-dot dot-danger"></span>
-            <span>Flow 2: Keselamatan</span>
+          <div class="flow-pathway-header">
+            <span class="flow-pathway-title">Evakuasi Bahaya Api</span>
           </div>
           <div class="flow-nodes">
             <div class="flow-node">

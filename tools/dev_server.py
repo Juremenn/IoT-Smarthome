@@ -13,7 +13,7 @@ import json
 import time
 import threading
 from urllib.parse import urlparse, parse_qs
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -323,7 +323,7 @@ class MockServerHandler(BaseHTTPRequestHandler):
 
 def run_server(port=8080):
     server_address = ("", port)
-    httpd = HTTPServer(server_address, MockServerHandler)
+    httpd = ThreadingHTTPServer(server_address, MockServerHandler)
     print("\n" + "=" * 58)
     print("  SMART HOME MINIATUR RUMAH JOGLO - LOCAL DEV SERVER")
     print(f"  Live Dashboard:   http://localhost:{port}")
