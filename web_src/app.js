@@ -55,23 +55,10 @@
     try {
       const data = await fetchEndpoint('/api/status');
       renderDashboard(data);
-      updateConnectionStatus(true, data.ip);
     } catch (err) {
-      updateConnectionStatus(false, 'Terputus');
+      // Offline fallback silent
     }
     setTimeout(pollStatus, CONFIG.POLL_INTERVAL_MS);
-  }
-
-  function updateConnectionStatus(isOnline, label) {
-    const pill = $('connPill');
-    const lbl = $('connLabel');
-    if (isOnline) {
-      pill.classList.remove('disconnected');
-      lbl.textContent = label || '127.0.0.1:8080 (Sim)';
-    } else {
-      pill.classList.add('disconnected');
-      lbl.textContent = 'Terputus (Offline)';
-    }
   }
 
   // Render Dashboard

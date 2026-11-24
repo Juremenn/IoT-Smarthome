@@ -25,8 +25,15 @@ def main():
     assert "text/html" in ct, f"Expected text/html, got {ct}"
     html_str = body.decode("utf-8")
     assert "Rumah Joglo" in html_str, "HTML must contain title"
-    assert "ESP32 Simulator" in html_str, "Simulator drawer must be injected"
-    print(" [PASS] GET / (with injected simulator drawer)")
+    assert "ESP32 Simulator" not in html_str, "Simulator drawer must be removed"
+    assert "connPill" not in html_str, "Connection pill must be removed"
+    print(" [PASS] GET / (pure dashboard without AI slop pills)")
+
+    # 1b. Test GET /joglo.png
+    st, ct, png_bytes = get("/joglo.png")
+    assert st == 200 and "image/png" in ct
+    assert png_bytes[:4] == b"\x89PNG", "Valid PNG magic header"
+    print(" [PASS] GET /joglo.png")
 
     # 2. Test CSS & JS
     st, ct, _ = get("/style.css")

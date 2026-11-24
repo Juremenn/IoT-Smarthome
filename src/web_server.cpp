@@ -10,6 +10,7 @@
 #include "oled.h"
 #include "sensors.h"
 #include "web/alarm_mp3.h"
+#include "web/joglo_png.h"
 #include "web/app_js.h"
 #include "web/index_html.h"
 #include "web/style_css.h"
@@ -145,6 +146,10 @@ void webBegin() {
   server.on("/alarm.mp3", HTTP_GET, [] {
     server.sendHeader("Cache-Control", "max-age=86400");
     server.send_P(200, "audio/mpeg", (PGM_P)ALARM_MP3, ALARM_MP3_LEN);
+  });
+  server.on("/joglo.png", HTTP_GET, [] {
+    server.sendHeader("Cache-Control", "max-age=86400");
+    server.send_P(200, "image/png", (PGM_P)JOGLO_PNG, JOGLO_PNG_LEN);
   });
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);

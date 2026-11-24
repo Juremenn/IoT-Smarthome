@@ -91,8 +91,8 @@ body {
 }
 
 .brand-icon {
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,33 +125,7 @@ body {
   margin-top: 5px;
 }
 
-.conn-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-brass-muted);
-  border-radius: var(--radius-badge);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  box-shadow: 0 1px 3px rgba(59, 40, 30, 0.04);
-}
-
-.conn-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #2E7D32;
-  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
-}
-
-.conn-pill.disconnected .conn-indicator {
-  background-color: var(--status-danger);
-  box-shadow: 0 0 0 2px rgba(158, 42, 43, 0.2);
-}
+/* Connection status pill removed per design refinement */
 
 /* ==========================================================================
    BENTO GRID ARCHITECTURE (5-Card Layout)
