@@ -731,13 +731,111 @@ button:disabled {
   white-space: nowrap;
 }
 
-.flow-connector {
+/* Animated Pulse Packet Conduit (9Router Style) */
+.flow-conduit {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #9CA3AF;
+  gap: 3px;
+  flex: 0 1 54px;
+  min-width: 32px;
+  height: 16px;
+  position: relative;
+}
+
+.conduit-track {
+  flex-grow: 1;
+  height: 2px;
+  background-color: var(--border-subtle);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.conduit-pulse {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0) 0%, var(--accent-celadon) 65%, #FFFFFF 100%);
+  animation: pulsePacket 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.flow-conduit.conduit-triggered .conduit-pulse {
+  background: linear-gradient(90deg, rgba(168, 74, 40, 0) 0%, var(--accent-terracotta) 65%, #FFFFFF 100%);
+  animation-duration: 0.75s;
+}
+
+.flow-conduit-danger .conduit-pulse {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0) 0%, var(--status-danger) 65%, #FFFFFF 100%);
+  animation: pulsePacketDanger 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.flow-conduit-danger.conduit-danger-active .conduit-pulse {
+  animation-duration: 0.55s;
+}
+
+@keyframes pulsePacket {
+  0% {
+    left: -18px;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes pulsePacketDanger {
+  0% {
+    left: -18px;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.conduit-arrow {
+  width: 6px;
+  height: 10px;
+  fill: none;
+  stroke: #9CA3AF;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   flex-shrink: 0;
-  padding: 0 4px;
+}
+
+/* Active Node Trigger Highlights */
+.flow-node.node-triggered {
+  border-color: var(--accent-terracotta);
+  box-shadow: 0 0 0 2px var(--accent-terracotta-tint);
+}
+
+.flow-node.node-danger-active {
+  border-color: var(--status-danger) !important;
+  box-shadow: 0 0 0 2px var(--status-danger-tint) !important;
+  animation: alertPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes alertPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
 }
 
 /* Sensor Cards (2x2 Grid) */
@@ -751,11 +849,11 @@ button:disabled {
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   transition: border-color var(--transition), box-shadow var(--transition);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
@@ -770,8 +868,6 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .pinout-title-wrap {
@@ -815,23 +911,10 @@ button:disabled {
   white-space: nowrap;
 }
 
-.pinout-card-body {
-  flex-grow: 1;
-}
-
-.pinout-card-body p {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-secondary);
-}
-
 .spec-chips-footer {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--border-subtle);
 }
 
 .spec-chip {
@@ -869,9 +952,10 @@ button:disabled {
     align-items: stretch;
     gap: 8px;
   }
-  .flow-connector {
+  .flow-conduit {
     transform: rotate(90deg);
-    margin: 2px 0;
+    margin: 6px auto;
+    width: 44px;
   }
 }
 
