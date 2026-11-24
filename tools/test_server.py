@@ -65,12 +65,20 @@ def main():
     assert data["fan"] != prev_fan
     print(f" [PASS] GET /api/fan?toggle=1 -> fan changed from {prev_fan} to {data['fan']}")
 
-    # 6. Test /api/simulator/update
+    # 6. Test /api/simulator/update with flame evacuation priority
     st, ct, body = post("/api/simulator/update", {"temp": 35.5, "flame": True})
     data = json.loads(body.decode("utf-8"))
     assert data["temp"] == 35.5
     assert data["flame"] is True
-    print(f" [PASS] POST /api/simulator/update -> temp: {data['temp']}, flame: {data['flame']}")
+    assert data["door"] == "EVAKUASI", f"Door must be EVAKUASI during fire, got {data['door']}"
+    print(f" [PASS] POST /api/simulator/update -> temp: {data['temp']}, flame: {data['flame']}, door: {data['door']}")
+
+    # 6b. Reset flame to False
+    st, ct, body = post("/api/simulator/update", {"flame": False})
+    data = json.loads(body.decode("utf-8"))
+    assert data["flame"] is False
+    assert data["door"] == "TERTUTUP"
+    print(" [PASS] Fire cleared -> door returned to TERTUTUP")
 
     print("\nALL DEV SERVER TESTS PASSED SUCCESSFULLY!")
 

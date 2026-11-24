@@ -28,8 +28,8 @@ void automationUpdate(unsigned long now) {
   touchUpdate(now, mode == MODE_TOUCH);
   ultrasonicUpdate(now, mode == MODE_ULTRASONIC);
 
-  // Mode api: pintu dibuka dan ditahan terbuka selama api masih terdeteksi.
-  doorSetEvacuation(mode == MODE_FLAME && flameDetected());
+  // Evakuasi api (Prioritas Darurat Global): pintu dibuka penuh selama api terdeteksi.
+  doorSetEvacuation(flameDetected());
 
   bool triggered = false;
   if (mode == MODE_TOUCH) {

@@ -81,8 +81,8 @@ class SmartHomeState:
         self.auto_cycle_timer.start()
 
     def update_automation(self):
-        # Evakuasi api
-        if self.doorTriggerMode == 2 and self.flame:
+        # Evakuasi api (Prioritas Darurat Global)
+        if self.flame:
             self.door = "EVAKUASI"
         elif self.door == "EVAKUASI" and not self.flame:
             self.door = "TERTUTUP"
