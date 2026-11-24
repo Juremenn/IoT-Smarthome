@@ -52,8 +52,8 @@ Firmware sistem kendali *smart home* miniatur Rumah Joglo berbasis **ESP32 (`esp
 Diagram berikut memetakan keseluruhan siklus eksekusi *end-to-end* dari *power-on* (`setup`) hingga iterasi tak terbatas (`loop`), mencakup jaringan Access Point & HTTP server, akuisisi seluruh sensor, hierarki prioritas evakuasi darurat, kendali aktuator, pembaruan OLED, hingga log Serial.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Poppins, Inter, Segoe UI, sans-serif', 'fontSize': '13px', 'lineColor': '#475569'}, 'flowchart': {'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 55, 'padding': 16}}}%%
-flowchart TD
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Poppins, Inter, Segoe UI, sans-serif', 'fontSize': '12px', 'lineColor': '#475569'}, 'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 40, 'padding': 12}}}%%
+flowchart LR
     classDef terminator fill:#DCFCE7,stroke:#16A34A,stroke-width:2.5px,color:#0F172A,font-weight:bold
     classDef preparation fill:#E0E7FF,stroke:#4F46E5,stroke-width:2px,color:#0F172A
     classDef io_input fill:#E0F2FE,stroke:#0284C7,stroke-width:2px,color:#0F172A
@@ -64,142 +64,118 @@ flowchart TD
     classDef emergency fill:#FEE2E2,stroke:#DC2626,stroke-width:2.5px,color:#7F1D1D,font-weight:bold
     classDef connector fill:#F1F5F9,stroke:#334155,stroke-width:2px,color:#0F172A,font-weight:bold
 
-    subgraph SG_BOOT["1. Boot & Hardware Preparation - setup"]
-        TERM_START(["Power ON ESP32<br/>Mulai Eksekusi Firmware"]):::terminator
-        PREP_SERIAL{{"Serial.begin 115200 bps<br/>Cek esp_reset_reason"}}:::preparation
-        PREP_ACT{{"doorBegin: Servo GPIO 13 & 12 ke 180 deg<br/>fanBegin: Relay GPIO 23 OFF Active-LOW"}}:::preparation
-        PREP_SENS{{"ultrasonicBegin: Trig D4, Echo D5<br/>flameBegin: D34 INPUT<br/>dhtBegin: D27 INPUT_PULLUP"}}:::preparation
-        PREP_OLED{{"oledBegin: I2C SDA D21, SCL D22<br/>Scan 0x3C/0x3D & oledShowBoot"}}:::preparation
-        PREP_NET{{"networkBegin: WIFI_AP, Sleep OFF<br/>SSID RumahJoglo-SmartHome 192.168.4.1<br/>webBegin: HTTP WebServer Port 80"}}:::preparation
-        IO_SPLASH[/"oledShowSplash: Status ONLINE<br/>Cetak Konfigurasi Pin & IP ke Serial"/]:::io_output
-        DEC_INIT_TOUCH{"triggerMode ==<br/>MODE_TOUCH?"}:::decision
-        PREP_TOUCH{{"touchBegin: Sampling 5x Touch0 D4<br/>Set touchBaseline Awal"}}:::preparation
+    subgraph SG_BOOT["1. Boot & Hardware Setup"]
+        direction TB
+        TERM_START(["Power ON ESP32"]):::terminator
+        PREP_HW{{"Inisialisasi Hardware:<br/>• Serial 115200 bps<br/>• Servo D13/D12 (180 deg)<br/>• Relay Kipas D23 OFF<br/>• OLED I2C D21/D22"}}:::preparation
+        PREP_NET{{"Inisialisasi Jaringan:<br/>• SoftAP: RumahJoglo<br/>• WebServer Port 80"}}:::preparation
+        IO_BOOT_LOG[/"Log Serial & Splash OLED"/]:::io_output
+        DEC_INIT_TOUCH{"Mode == Touch?"}:::decision
+        PREP_TOUCH{{"Kalibrasi Touch0 D4"}}:::preparation
 
-        TERM_START --> PREP_SERIAL
-        PREP_SERIAL --> PREP_ACT
-        PREP_ACT --> PREP_SENS
-        PREP_SENS --> PREP_OLED
-        PREP_OLED --> PREP_NET
-        PREP_NET --> IO_SPLASH
-        IO_SPLASH --> DEC_INIT_TOUCH
+        TERM_START --> PREP_HW
+        PREP_HW --> PREP_NET
+        PREP_NET --> IO_BOOT_LOG
+        IO_BOOT_LOG --> DEC_INIT_TOUCH
         DEC_INIT_TOUCH -->|Ya| PREP_TOUCH
     end
 
-    subgraph SG_NET["2. Network AP & HTTP Web Server"]
+    subgraph SG_NET["2. Jaringan AP & HTTP Server"]
+        direction TB
         CONN_LOOP_IN(("A")):::connector
-        PROC_MILLIS["now = millis<br/>networkMaintain"]:::process
-        SUB_WEB[["webHandle<br/>Layani Klien HTTP Port 80"]]:::subroutine
-        DEC_HTTP{"Ada Request HTTP<br/>Masuk?"}:::decision
-        IO_HTTP_REQ[/"Terima HTTP GET: Aset PROGMEM<br/>atau /api/status, door, fan, flame, us"/]:::io_input
-        PROC_HTTP_ACT["Proses Aksi API: Pintu, Mode, Kipas<br/>Logika Api, Swap/Scan Pin Ultrasonik"]:::process
-        IO_HTTP_RES[/"Kirim Aset Web atau JSON Status<br/>HTTP 200 ke Dashboard Polling 300ms"/]:::io_output
+        PROC_NOW["now = millis()"]:::process
+        SUB_WEB[["webHandle() Port 80"]]:::subroutine
+        DEC_HTTP{"Ada Request<br/>HTTP?"}:::decision
+        PROC_API["Proses API Endpoint:<br/>/api/status, door, fan, flame"]:::process
+        IO_HTTP_RES[/"Response JSON / Web Asset"/]:::io_output
 
-        CONN_LOOP_IN --> PROC_MILLIS
-        PROC_MILLIS --> SUB_WEB
+        CONN_LOOP_IN --> PROC_NOW
+        PROC_NOW --> SUB_WEB
         SUB_WEB --> DEC_HTTP
-        DEC_HTTP -->|Ya| IO_HTTP_REQ
-        IO_HTTP_REQ --> PROC_HTTP_ACT
-        PROC_HTTP_ACT --> IO_HTTP_RES
+        DEC_HTTP -->|Ya| PROC_API
+        PROC_API --> IO_HTTP_RES
     end
 
-    subgraph SG_ACQ["3. Main Loop & Input Acquisition"]
-        DEC_DOOR_IDLE{"DoorPhase Closed<br/>atau Open?"}:::decision
-        DEC_DHT_TIME{"now >= 1500ms &<br/>Selang >= 2100ms?"}:::decision
-        IO_DHT[/"dhtUpdate: Baca DHT11 GPIO D27<br/>Validasi -10..80 C & 0..100%"/]:::io_input
-        PROC_DHT_SAVE["Simpan Suhu & Kelembaban Valid<br/>Toleransi Gagal <= 5x"]:::process
-        IO_FLAME[/"flameUpdate: Baca GPIO D34 tiap 5ms<br/>Konfirmasi >= 15ms, Rilis >= 1200ms"/]:::io_input
-        DEC_SENS_MODE{"triggerMode Aktif<br/>untuk Input?"}:::decision
-        IO_TOUCH[/"touchUpdate: Touch0 D4 tiap 10ms<br/>Median 3x & Baseline Adaptif"/]:::io_input
-        IO_US[/"ultrasonicUpdate: Trig D4, Echo D5<br/>Ping 10us tiap 40ms, Timeout 25ms"/]:::io_input
-        PROC_US_CALC["Hitung Jarak cm = durasi * 0.034 / 2<br/>Reset Jarak 0 jika >= 3x Miss Echo"]:::process
+    subgraph SG_ACQ["3. Pembacaan Sensor"]
+        direction TB
+        DEC_DHT_CHECK{"Pintu Diam &<br/>Jeda >= 2100ms?"}:::decision
+        IO_DHT[/"Baca DHT11 D27:<br/>Suhu & Kelembaban"/]:::io_input
+        IO_FLAME[/"Baca Flame D34:<br/>Sampling 5ms / Filter 15ms"/]:::io_input
+        DEC_MODE{"Pemicu Aktif?"}:::decision
+        IO_TOUCH[/"Baca Touch0 D4"/]:::io_input
+        IO_US[/"Baca HC-SR04:<br/>Trig D4, Echo D5"/]:::io_input
 
-        DEC_DOOR_IDLE -->|Ya| DEC_DHT_TIME
-        DEC_DHT_TIME -->|Ya| IO_DHT
-        IO_DHT --> PROC_DHT_SAVE
-        PROC_DHT_SAVE --> IO_FLAME
-        DEC_DHT_TIME -->|Tidak| IO_FLAME
-        DEC_DOOR_IDLE -->|"Tidak - Servo Bergerak"| IO_FLAME
-        IO_FLAME --> DEC_SENS_MODE
-        DEC_SENS_MODE -->|"MODE_TOUCH = 1"| IO_TOUCH
-        DEC_SENS_MODE -->|"MODE_ULTRASONIC = 3"| IO_US
-        IO_US --> PROC_US_CALC
+        DEC_DHT_CHECK -->|Ya| IO_DHT
+        DEC_DHT_CHECK -->|Tidak| IO_FLAME
+        IO_DHT --> IO_FLAME
+        IO_FLAME --> DEC_MODE
+        DEC_MODE -->|Touch| IO_TOUCH
+        DEC_MODE -->|Ultrasonic| IO_US
     end
 
-    subgraph SG_LOGIC["4. Decision Engine & Priority Logic"]
-        DEC_EVAC{"PRIORITAS 1: MODE_FLAME<br/>& flameDetected == true?"}:::decision
-        PROC_EVAC_ON["doorSetEvacuation true:<br/>Paksa Buka 0 deg & Kunci Tutup Web<br/>Alarm Web Latch >= 3.5 detik"]:::emergency
-        PROC_EVAC_OFF["doorSetEvacuation false<br/>Status Evakuasi Nonaktif"]:::process
-        DEC_MAN_OPEN{"doorIsManualOpen<br/>Buka Terus Aktif?"}:::decision
-        PROC_KEEP_OPEN["Abaikan Sensor Pemicu<br/>Pertahankan Posisi Terbuka"]:::process
-        DEC_TRIG_HIT{"Pemicu Terpenuhi?<br/>Touch Delta >= 4% maks 55<br/>atau Jarak 1..10 cm?"}:::decision
-        SUB_DOOR_CYCLE[["doorStartCycle<br/>Buka 5000ms / Perpanjang Tahan 2000ms<br/>Balik Buka Jika Menutup"]]:::subroutine
+    subgraph SG_LOGIC["4. Engine Logika & Prioritas"]
+        direction TB
+        DEC_EVAC{"PRIORITAS 1:<br/>Api Terdeteksi?"}:::decision
+        PROC_EVAC["doorSetEvacuation(true):<br/>Paksa Buka Penuh 0 deg<br/>Kunci Tutup Manual Web"]:::emergency
+        DEC_MAN_OPEN{"PRIORITAS 2:<br/>Manual Buka Web?"}:::decision
+        DEC_TRIGGER{"PRIORITAS 3 & 4:<br/>Jarak <= 10cm / Touch?"}:::decision
+        SUB_CYCLE[["doorStartCycle():<br/>Buka 5000ms / Tahan 2000ms"]]:::subroutine
 
-        DEC_EVAC ==>|"Ya - DARURAT API"| PROC_EVAC_ON
-        DEC_EVAC -->|"Tidak - Aman"| PROC_EVAC_OFF
-        PROC_EVAC_OFF --> DEC_MAN_OPEN
-        DEC_MAN_OPEN -->|Ya| PROC_KEEP_OPEN
-        DEC_MAN_OPEN -->|Tidak| DEC_TRIG_HIT
-        DEC_TRIG_HIT -->|Ya| SUB_DOOR_CYCLE
+        DEC_EVAC ==>|Ya - DARURAT| PROC_EVAC
+        DEC_EVAC -->|Aman| DEC_MAN_OPEN
+        DEC_MAN_OPEN -->|Tidak| DEC_TRIGGER
+        DEC_TRIGGER -->|Ya| SUB_CYCLE
     end
 
-    subgraph SG_ACT["5. Actuator Control & Output Feedback"]
-        SUB_DOOR_UPD[["doorUpdate<br/>Update Non-Blocking Servo tiap 20ms"]]:::subroutine
-        DEC_DOOR_MOV{"DoorPhase Opening<br/>atau Closing?"}:::decision
-        PROC_CURVE["Hitung Kurva Sudut Servo:<br/>Buka 5000ms: easeInOutSine<br/>Tutup 7000ms: easeSoftClose"]:::process
-        IO_SERVO[/"writeMicroseconds 500..2400us<br/>ke Servo GPIO D13 & D12"/]:::io_output
-        DEC_HOLD_END{"Phase Open & autoCycle &<br/>!evacuation & Tahan 2000ms Habis?"}:::decision
-        PROC_START_CLOSE["startMove ke SERVO_CLOSE 180 deg<br/>Durasi Soft-Close 7000ms"]:::process
-        DEC_FAN_REQ{"Ada Perintah /api/fan<br/>pada Siklus Ini?"}:::decision
-        IO_FAN[/"fan applyOutput: digitalWrite D23<br/>Set Relay ON/OFF Active-LOW/HIGH"/]:::io_output
-        SUB_OLED_UPD[["oledUpdate<br/>Hot-Plug Scan 1.5s & Refresh 50ms"]]:::subroutine
-        DEC_OLED_ACT{"OLED SSD1306<br/>Aktif di I2C?"}:::decision
-        DEC_OLED_FIRE{"flameDetected<br/>== true?"}:::decision
-        IO_OLED_FIRE[/"OLED D21/D22: Layar Berkedip<br/>PERINGATAN API & EVAKUASI AKTIF"/]:::emergency
-        IO_OLED_NORM[/"OLED D21/D22: IP, Animasi Wayang<br/>Suhu, Kelembaban & API: AMAN"/]:::io_output
+    subgraph SG_ACT["5. Aktuator & OLED"]
+        direction TB
+        SUB_SERVO[["doorUpdate() Tiap 20ms:<br/>Kurva Sine Buka / Soft-Close"]]:::subroutine
+        IO_SERVO[/"Kirim PWM Servo D13/D12"/]:::io_output
+        IO_FAN[/"Kendali Relay Kipas D23"/]:::io_output
+        SUB_OLED[["oledUpdate() Tiap 50ms"]]:::subroutine
+        DEC_OLED_FIRE{"Api Aktif?"}:::decision
+        IO_OLED_FIRE[/"OLED: Peringatan Bahaya"/]:::emergency
+        IO_OLED_NORM[/"OLED: Animasi & Status"/]:::io_output
 
-        SUB_DOOR_UPD --> DEC_DOOR_MOV
-        DEC_DOOR_MOV -->|Ya| PROC_CURVE
-        PROC_CURVE --> IO_SERVO
-        IO_SERVO --> DEC_FAN_REQ
-        DEC_DOOR_MOV -->|Tidak| DEC_HOLD_END
-        DEC_HOLD_END -->|Ya| PROC_START_CLOSE
-        PROC_START_CLOSE --> DEC_FAN_REQ
-        DEC_HOLD_END -->|Tidak| DEC_FAN_REQ
-        DEC_FAN_REQ -->|Ya| IO_FAN
-        IO_FAN --> SUB_OLED_UPD
-        DEC_FAN_REQ -->|Tidak| SUB_OLED_UPD
-        SUB_OLED_UPD --> DEC_OLED_ACT
-        DEC_OLED_ACT -->|Ya| DEC_OLED_FIRE
-        DEC_OLED_FIRE ==>|"Ya - BAHAYA"| IO_OLED_FIRE
-        DEC_OLED_FIRE -->|"Tidak - Aman"| IO_OLED_NORM
+        SUB_SERVO --> IO_SERVO
+        IO_SERVO --> IO_FAN
+        IO_FAN --> SUB_OLED
+        SUB_OLED --> DEC_OLED_FIRE
+        DEC_OLED_FIRE ==>|Ya| IO_OLED_FIRE
+        DEC_OLED_FIRE -->|Tidak| IO_OLED_NORM
     end
 
-    subgraph SG_SYNC["6. Loop Cycle & Return Path"]
-        DEC_SER_LOG{"now - lastSerialLog<br/>>= 3000 ms?"}:::decision
-        IO_SER_LOG[/"Cetak Log Status ke Serial 115200:<br/>Pintu, Suhu, Jarak, Kipas, Flame, OLED"/]:::io_output
-        PROC_DELAY["Jeda Ringan delay 1ms<br/>Jaga Stabilitas Watchdog ESP32"]:::process
+    subgraph SG_SYNC["6. Sync & Return Loop"]
+        direction TB
+        DEC_LOG{"Jeda Log >= 3000ms?"}:::decision
+        IO_LOG[/"Serial Log Telemetri 115200"/]:::io_output
+        PROC_GUARD["delay(1)<br/>Watchdog Guard"]:::process
         CONN_LOOP_OUT(("A")):::connector
 
-        DEC_SER_LOG -->|Ya| IO_SER_LOG
-        IO_SER_LOG --> PROC_DELAY
-        DEC_SER_LOG -->|Tidak| PROC_DELAY
-        PROC_DELAY --> CONN_LOOP_OUT
+        DEC_LOG -->|Ya| IO_LOG
+        DEC_LOG -->|Tidak| PROC_GUARD
+        IO_LOG --> PROC_GUARD
+        PROC_GUARD --> CONN_LOOP_OUT
     end
 
+    %% Koneksi Pipeline Horizontal Antar Modul (Kiri ke Kanan)
     PREP_TOUCH --> CONN_LOOP_IN
     DEC_INIT_TOUCH -->|Tidak| CONN_LOOP_IN
-    DEC_HTTP -->|Tidak| DEC_DOOR_IDLE
-    IO_HTTP_RES --> DEC_DOOR_IDLE
+    DEC_HTTP -->|Tidak| DEC_DHT_CHECK
+    IO_HTTP_RES --> DEC_DHT_CHECK
+
     IO_TOUCH --> DEC_EVAC
-    PROC_US_CALC --> DEC_EVAC
-    DEC_SENS_MODE -->|"MODE_MANUAL = 0 / FLAME = 2"| DEC_EVAC
-    PROC_EVAC_ON ==> SUB_DOOR_UPD
-    PROC_KEEP_OPEN --> SUB_DOOR_UPD
-    SUB_DOOR_CYCLE --> SUB_DOOR_UPD
-    DEC_TRIG_HIT -->|Tidak| SUB_DOOR_UPD
-    DEC_OLED_ACT -->|Tidak| DEC_SER_LOG
-    IO_OLED_FIRE ==> DEC_SER_LOG
-    IO_OLED_NORM --> DEC_SER_LOG
+    IO_US --> DEC_EVAC
+    DEC_MODE -->|Manual| DEC_EVAC
+
+    PROC_EVAC ==> SUB_SERVO
+    DEC_MAN_OPEN -->|Ya| SUB_SERVO
+    SUB_CYCLE --> SUB_SERVO
+    DEC_TRIGGER -->|Tidak| SUB_SERVO
+
+    IO_OLED_FIRE ==> DEC_LOG
+    IO_OLED_NORM --> DEC_LOG
+
     CONN_LOOP_OUT --> CONN_LOOP_IN
 
     style SG_BOOT fill:#F8FAFC,stroke:#64748B,stroke-width:1.5px,color:#0F172A
