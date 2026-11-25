@@ -1,314 +1,256 @@
 ================================================================================
-          PANDUAN LENGKAP PENYUSUNAN FLOWCHART SISTEM IOT SMART HOME
-                         (PROYEK MINIATUR RUMAH JOGLO)
+          COMPLETE ISO 5807 FLOWCHART SPECIFICATION & STEP-BY-STEP GUIDE
+                   (RUMAH JOGLO MINIATURE SMART HOME IOT - ESP32)
 ================================================================================
 
-File ini dirancang sebagai panduan praktis dan detail agar Anda bisa langsung 
-menggambar flowchart dengan alur yang benar, logis, dan sesuai standar teknis 
-(cocok untuk skripsi, laporan proyek, makalah, maupun presentasi).
+This plain-text specification documents the complete execution flow of the
+ESP32 firmware (src/*.cpp, include/config.h) and Web Dashboard (web_src/*)
+using standard ISO 5807 flowchart symbols. It is 100% synchronized with the
+5-tab Draw.io file (IotSmarthome.drawio).
 
 --------------------------------------------------------------------------------
-DAFTAR ISI:
-1. PANDUAN SIMBOL STANDAR FLOWCHART (ANSI/ISO)
-2. FLOWCHART 1: ALUR SISTEM UTAMA (GLOBAL FLOWCHART / MAIN LOOP)
-3. FLOWCHART 2: ALUR KONEKSI JARINGAN & WEB SERVER (WIFI / ACCESS POINT)
-4. FLOWCHART 3: ALUR LOGIKA OTOMASI PINTU SERVO (TOUCH, ULTRASONIK, API)
-5. FLOWCHART 4: ALUR SENSOR SUHU & KELEMBABAN (DHT11)
-6. RINGKASAN TEKS SIAP PAKAI (BISA LANGSUNG DICOPY KE DRAW.IO / CANVA / WORD)
+TABLE OF CONTENTS:
+1. ISO 5807 STANDARD SYMBOL REFERENCE
+2. DIAGRAM 1: COMPLETE SYSTEM FLOWCHART (SEQUENTIAL 4-STAGE PIPELINE)
+3. DIAGRAM 2: SUBSYSTEM 1 - FIRE DETECTION & EMERGENCY EVACUATION
+4. DIAGRAM 3: SUBSYSTEM 2 - DOOR SERVO CONTROL (OPEN & SOFT-CLOSE)
+5. DIAGRAM 4: SUBSYSTEM 3 - DHT11 TELEMETRY & HOT-PLUG OLED DISPLAY
+6. DIAGRAM 5: SUBSYSTEM 4 - WEB DASHBOARD WORKFLOW
 --------------------------------------------------------------------------------
 
 
 ================================================================================
-1. PANDUAN SIMBOL STANDAR FLOWCHART (ANSI/ISO)
+1. ISO 5807 STANDARD SYMBOL REFERENCE
 ================================================================================
-Sebelum menggambar, pastikan bentuk simbol yang digunakan tepat:
 
-1. TERMINATOR (Bentuk Oval / Kapsul Persegi Tumpul)
-   - Fungsi: Titik Mulai (Start) dan Titik Selesai (End) alur sistem.
-   - Contoh teks: "Mulai (Power ON)", "Selesai", "Kembali ke Loop".
+1. TERMINATOR (Capsule / Rounded Oval)
+   - Purpose: Marks the entry point (Start) and exit point (End) of a diagram.
+   - Examples: "Start (ESP32 Power ON)", "End (System Halted)".
 
-2. PROSES / PROCESS (Bentuk Persegi Panjang)
-   - Fungsi: Aksi, kalkulasi, penugasan variabel, inisialisasi pin/komponen.
-   - Contoh teks: "Inisialisasi GPIO & Sensor", "Hitung Sudut Servo (Ease-In-Out)".
+2. PREPARATION (Hexagon)
+   - Purpose: Hardware GPIO setup, PWM timer allocation, I2C bus initialization,
+     standalone Wi-Fi Access Point startup, and HTTP server registration.
+   - Examples: "Initialize ESP32 Hardware...", "Start Standalone Wi-Fi AP...".
 
-3. KEPUTUSAN / DECISION (Bentuk Belah Ketupat / Diamond)
-   - Fungsi: Percabangan kondisi logika dengan 2 opsi keluaran (Ya/Tidak atau True/False).
-   - Contoh teks: "Apakah WiFi Terhubung?", "Apakah Terdeteksi Api?".
+3. INPUT / OUTPUT (Parallelogram)
+   - Purpose: Reading physical sensors (D34, D4/D5, D27), sending servo PWM
+     pulses (D13/D12), and exchanging HTTP GET/JSON packets (/api/*).
+   - Examples: "Read Digital Signal from Flame Sensor D34 (Every 5 ms)".
 
-4. INPUT / OUTPUT (Bentuk Jajaran Genjang)
-   - Fungsi: Menerima data sensor atau mengirim informasi keluar.
-   - Contoh teks: "Baca Nilai Sensor D34/D4/Echo", "Tampilkan Status ke Layar OLED".
+4. PROCESS (Rectangle)
+   - Purpose: Internal state updates, anti-flicker filtering, ultrasonic
+     distance math, and servo motion curves (easeInOutSine / easeSoftClose).
+   - Examples: "Soft-Close Door Smoothly from 0 deg to 180 deg (7000 ms)".
 
-5. SUBROUTINE / PREDEFINED PROCESS (Persegi Panjang dengan Garis Ganda di Sisi)
-   - Fungsi: Menunjukkan modul atau fungsi terpisah (misal fungsi doorUpdate()).
+5. DECISION (Diamond / Rhombus)
+   - Purpose: Binary conditional evaluation with two distinct labeled exit ports
+     (Yes and No). Multi-action choices use cascaded binary decision diamonds.
+   - Examples: "Is Fire Detected?", "Action == 'Open 2s'?".
 
-6. GARIS ALIR / FLOWLINE (Panah)
-   - Fungsi: Menghubungkan satu langkah ke langkah berikutnya sesuai urutan waktu.
+6. DISPLAY (Curved Display Symbol)
+   - Purpose: Visual output presented on the 128x64 SSD1306 OLED screen or
+     rendered on the Web Dashboard UI.
+   - Examples: "Flash OLED '! FIRE WARNING !' & Play Web Alarm (/alarm.mp3)".
 
-
-================================================================================
-2. FLOWCHART 1: ALUR SISTEM UTAMA (GLOBAL FLOWCHART)
-================================================================================
-Ini adalah diagram utama yang menggambarkan siklus hidup program ESP32 dari 
-pertama kali dialiri listrik hingga berjalan tanpa henti (Setup -> Loop).
-
-[LANGKAH-LANGKAH ALUR]:
-
-1. [TERMINATOR] : Mulai (ESP32 Dinyalakan / Power ON)
-      |
-      v
-2. [PROSES]     : Inisialisasi Serial Monitor (Baudrate 115200)
-      |
-      v
-3. [PROSES]     : Inisialisasi Perangkat Keras (Hardware Setup):
-                  - Servo Pintu (D13/D12) diset ke sudut tertutup (180°)
-                  - Pin Sensor Api 5-Way (D34) sebagai INPUT
-                  - Pin Sensor Sentuh (D4) & Baseline Kalibrasi
-                  - Pin Sensor Ultrasonik (Trig D4, Echo D5)
-                  - Pin Sensor Suhu DHT11 (D27)
-                  - Layar OLED SSD1306 (I2C: D21/D22)
-      |
-      v
-4. [PROSES]     : Tampilkan Pesan Booting di Layar OLED: "Memulai Sistem..."
-      |
-      v
-5. [PROSES]     : Inisialisasi Jaringan WiFi (Coba Hubungkan ke WiFi Rumah)
-      |
-      v
-6. [DECISION]   : Apakah WiFi berhasil terhubung dalam 6 detik?
-                  ├──> [YA]    : Dapatkan IP Station (misal: 192.168.1.x)
-                  └──> [TIDAK] : Aktifkan Mode Access Point (AP) Hotspot:
-                                 SSID: "RumahJoglo-SmartHome"
-                                 IP Default: 192.168.4.1
-      |
-      v
-7. [PROSES]     : Mulai Web Server ESP32 & Daftarkan Endpoint HTTP (/api/*)
-      |
-      v
-8. [I / O]      : Tampilkan Splash Screen & Alamat IP di Layar OLED & Serial
-      |
-      v
-============== MASUK KE BLOK UTAMA (VOID LOOP - BERULANG TERUS) ==============
-      |
-      +---> 9. [PROSES] : Pemeriksaan & Pemeliharaan Jaringan (networkMaintain)
-            |
-            v
-           10. [PROSES] : Tangani Permintaan Web Dashboard (webHandle / HTTP Client)
-            |
-            v
-           11. [I / O]  : Pembacaan Sensor Berkala (dhtUpdate, flameUpdate, touch, ultrasonik)
-            |
-            v
-           12. [PROSES] : Evaluasi Logika Otomasi (automationUpdate)
-            |
-            v
-           13. [PROSES] : Update Pergerakan Halus Servo Pintu (doorUpdate)
-            |
-            v
-           14. [I / O]  : Perbarui Tampilan Status di Layar OLED (oledUpdate)
-            |
-            v
-           15. [DECISION] : Apakah sudah selang 3 detik?
-                            ├──> [YA]    : [I/O] Cetak Log Status ke Serial Monitor
-                            └──> [TIDAK] : Lanjut langsung
-            |
-            v
-           16. [PROSES] : Jeda waktu singkat (Delay non-blocking 2 ms)
-            |
-            +-------------> (Kembali berputar ke langkah 9)
+7. DELAY (D-Shaped Delay Symbol)
+   - Purpose: Explicit wait duration or hold timer.
+   - Examples: "Hold Door Open (2 Seconds)", "Wait Polling Interval (1000 ms)".
 
 
 ================================================================================
-3. FLOWCHART 2: ALUR KONEKSI JARINGAN & WEB SERVER
+2. DIAGRAM 1: COMPLETE SYSTEM FLOWCHART (START -> END)
 ================================================================================
-Bagan ini menjelaskan bagaimana sistem memastikan dashboard tetap dapat dibuka 
-bahkan saat tidak ada router internet.
 
-1. [TERMINATOR] : Mulai Konfigurasi Jaringan
-      |
-      v
-2. [I / O]      : Baca Kredensial WiFi (SSID & Password dari config)
-      |
-      v
-3. [PROSES]     : Set WiFi Mode ke Station (STA) & Mulai Koneksi (WiFi.begin)
-      |
-      v
-4. [PROSES]     : Catat Waktu Mulai (Mulai Timer 6000 ms)
-      |
-      v
-5. [DECISION]   : Apakah Status WiFi == WL_CONNECTED?
-                  ├──> [YA] :
-                  │      1. Simpan Status Mode: "WiFi Rumah (STA)"
-                  │      2. Dapatkan IP Address dari Router
-                  │      3. [Selesai Setup Jaringan -> Lanjut Mulai Web Server]
-                  │
-                  └──> [TIDAK] :
-                         |
-                         v
-                  6. [DECISION] : Apakah Waktu Mencoba >= 6 Detik (Timeout)?
-                                  ├──> [TIDAK] : Ulangi cek status (Loop menunggu)
-                                  └──> [YA] :
-                                         |
-                                         v
-                                  7. [PROSES] : Alihkan Mode WiFi ke Access Point (AP)
-                                  8. [PROSES] : Buat Hotspot: "RumahJoglo-SmartHome"
-                                  9. [PROSES] : Set IP Statis AP: 192.168.4.1
-                                 10. [I / O]  : Tampilkan Status Hotspot di Serial Monitor
-                                         |
-                                         v
-11. [PROSES]    : Mulai Server HTTP (Port 80)
-12. [TERMINATOR]: Web Dashboard Siap Diakses di Browser
+[TOP ROW: BOOT & INITIALIZATION]
+1. [M01 - TERMINATOR]  : Start (ESP32 Power ON)
+2. [M02 - PREPARATION] : Initialize ESP32 Hardware: Servo D13/D12 (Closed 180 deg),
+                         Fan D23 (OFF), Flame D34, Ultrasonic D4/D5, DHT11 D27,
+                         OLED D21/D22
+3. [M03 - PREPARATION] : Start Standalone Wi-Fi AP ("RumahJoglo-SmartHome",
+                         192.168.4.1) & HTTP Web Server (Port 80)
+4. [M04 - DISPLAY]     : Display "System Ready" Status & IP Address on OLED Screen
+5. [M05 - INPUT/OUTPUT]: Sample All Sensors (Flame D34, HC-SR04, DHT11 D27) &
+                         Poll HTTP Requests (/api/*)
 
+[STAGE 1: FIRE DETECTION & EVACUATION (PRIORITY 1)]
+6. [C1_1 - DECISION]   : Flame Sensor (D34) Detects Fire? (Filter >= 15 ms)
+                         |-- [No (Safe)] -> Advance to Stage 2 (C2_1)
+                         +-- [Yes]       -> Continue to C1_2
+7. [C1_2 - PROCESS]    : Emergency Evacuation Mode: Force Door Open to 0 deg &
+                         Lock Web "Close" Button
+8. [C1_3 - I/O]        : Drive Servo PWM (D13/D12) Open Immediately to 0 deg
+9. [C1_4 - DISPLAY]    : Flash OLED "! FIRE WARNING !" & Play Web Alarm (/alarm.mp3)
+10.[C1_5 - DECISION]   : Fire Extinguished & Quiet >= 1.2 Seconds?
+                         |-- [No (Fire Active)] -> Loop back to C1_3
+                         +-- [Yes]              -> Continue to C1_6
+11.[C1_6 - PROCESS]    : Clear Evacuation, Stop Alarm, & Set Auto-Close Timer (+2 s)
+                         -> Advance to Stage 2 (C2_1)
 
-================================================================================
-4. FLOWCHART 3: ALUR LOGIKA OTOMASI PINTU SERVO (CORE LOGIC)
-================================================================================
-Bagian ini adalah inti sistem otomasi pintu Rumah Joglo yang mencakup:
-- Prioritas Evakuasi Api
-- Mode Pemicu (Touch / Ultrasonik / Manual)
-- Pergerakan Halus (Ease-in-out Sine & Soft Close)
+[STAGE 2: WEB DASHBOARD CONTROLS (CASCADED BINARY DECISIONS)]
+12.[C2_1 - DECISION]   : Web Button Pressed on Dashboard?
+                         |-- [No]  -> Advance to Stage 3 (C3_1)
+                         +-- [Yes] -> Continue to C2_2
+13.[C2_2 - DECISION]   : Action == "Open 2s"?
+                         |-- [Yes] -> [C2_5 - PROCESS] Open 2 Seconds: Open to 0 deg,
+                         |            Hold 2 s, Soft-Close to 180 deg -> Advance to C3_1
+                         +-- [No]  -> Continue to C2_3
+14.[C2_3 - DECISION]   : Action == "Keep Open"?
+                         |-- [Yes] -> [C2_6 - PROCESS] Keep Open: Open to 0 deg & Latch
+                         |            (Ignore Ultrasonic Sensor) -> Advance to C3_1
+                         +-- [No]  -> Continue to C2_4
+15.[C2_4 - DECISION]   : Action == "Close"?
+                         |-- [Yes] -> [C2_7 - PROCESS] Close (If No Fire Active):
+                         |            Soft-Close Door to 180 deg -> Advance to C3_1
+                         +-- [No (Polarity)] -> [C2_8 - PROCESS] Toggle Flame Polarity:
+                                      Switch Active-HIGH / Active-LOW -> Advance to C3_1
 
-[LANGKAH DETAIL]:
+[STAGE 3: ULTRASONIC AUTOMATIC DOOR]
+16.[C3_1 - DECISION]   : Door in "Keep Open" Mode or Evacuating?
+                         |-- [Yes (Bypass)] -> Advance to Stage 4 (C4_1)
+                         +-- [No]           -> Continue to C3_2
+17.[C3_2 - I/O]        : Calculate HC-SR04 Distance (D4/D5) = (Duration * 0.034) / 2 cm
+18.[C3_3 - DECISION]   : Object Detected? (Distance <= Trigger Limit)
+                         |-- [Yes] -> [C3_4 - PROCESS] Open Door to 0 deg / Extend 2 s
+                         |            Hold Timer / Anti-Pinch Reverse Open -> C4_1
+                         +-- [No]  -> Continue to C3_5
+19.[C3_5 - DECISION]   : Door Auto-Open & 2-Second Hold Expired?
+                         |-- [Yes] -> [C3_6 - PROCESS] Soft-Close Door Smoothly to
+                         |            180 deg (7000 ms Curve) -> Advance to C4_1
+                         +-- [No]  -> Advance to Stage 4 (C4_1)
 
-1. [TERMINATOR] : Mulai Siklus Evaluasi Pintu (automationUpdate)
-      |
-      v
-2. [I / O]      : Baca Sinyal Sensor Api 5-Way pada GPIO D34
-      |
-      v
-3. [DECISION]   : Apakah Mode Saat Ini == MODE_FLAME dan Sinyal Api Aktif?
-                  (Terverifikasi > 80 ms untuk mencegah noise/pantulan cahaya)
-                  │
-                  ├──> [YA: KEADAAN DARURAT KEBAKARAN!]
-                  │      1. [PROSES] Aktifkan Status Evakuasi (Evacuation = TRUE)
-                  │      2. [PROSES] Gerakkan Servo Membuka Penuh ke 0°
-                  │      3. [PROSES] Kunci Status Pintu Terbuka Terus
-                  │      4. [PROSES] Tolak Perintah Tutup Pintu dari Web Dashboard
-                  │      5. [TERMINATOR] Selesai Siklus Ini (Menunggu Api Padam)
-                  │
-                  └──> [TIDAK / AMAN]
-                         |
-                         v
-4. [PROSES]     : Nonaktifkan Status Evakuasi (Evacuation = FALSE)
-      |
-      v
-5. [DECISION]   : Apakah Pintu Sedang Dikunci "Buka Terus" Manual dari Web?
-                  ├──> [YA]    : Pertahankan Posisi Terbuka Penuh (Abaikan Sensor)
-                  └──> [TIDAK] : Lanjutkan ke Pengecekan Sensor Pemicu
-                         |
-                         v
-6. [DECISION]   : Mode Pemicu yang Aktif?
-                  │
-                  ├──> [MODE SENTUH (D4)]:
-                  │      - [I / O] Baca Nilai Kapasitif Touch0 (D4)
-                  │      - [DECISION] Apakah Selisih Nilai (Delta) >= Ambang Batas (120)?
-                  │                     ├──> [YA]    : Terpemicu (Triggered = TRUE)
-                  │                     └──> [TIDAK] : Tidak Terpemicu
-                  │
-                  ├──> [MODE ULTRASONIK (HC-SR04)]:
-                  │      - [I / O] Pancarkan Pulsa Trig & Ukur Pantulan Echo
-                  │      - [PROSES] Hitung Jarak: (Durasi * 0.034) / 2 cm
-                  │      - [DECISION] Apakah Jarak > 0 DAN Jarak <= 10 cm?
-                  │                     ├──> [YA]    : Terpemicu (Triggered = TRUE)
-                  │                     └──> [TIDAK] : Tidak Terpemicu
-                  │
-                  └──> [MODE MANUAL WEB]:
-                         - Sensor Otomatis Tidak Digunakan (Triggered = FALSE)
-                         - Pintu Hanya Merespon Tombol Web Dashboard
-      |
-      v
-7. [DECISION]   : Apakah Status Pemicu (Triggered) == TRUE?
-                  │
-                  ├──> [YA] :
-                  │      1. [PROSES] Periksa Kondisi Pintu Saat Ini:
-                  │         - Jika Tertutup -> Mulai Buka Halus (Durasi 5000 ms)
-                  │         - Jika Sedang Terbuka -> Reset/Perpanjang Waktu Tahan (2 Detik)
-                  │         - Jika Sedang Menutup -> Langsung Balik Membuka (Anti-Terjepit)
-                  │
-                  └──> [TIDAK] :
-                         |
-                         v
-8. [DECISION]   : Apakah Pintu Berada di Siklus Otomatis (AutoCycle)?
-                  │
-                  ├──> [YA] :
-                  │      - [DECISION] Apakah Pintu Sudah Terbuka Penuh DAN Waktu Tahan (2 Detik) Habis?
-                  │                     ├──> [YA]    : Mulai Gerak Menutup Halus (Soft Close 7000 ms)
-                  │                     └──> [TIDAK] : Lanjutkan Menahan Posisi Terbuka
-                  │
-                  └──> [TIDAK] : Tetap di Posisi Saat Ini (Tertutup Rapat / Terbuka Manual)
-      |
-      v
-9. [SUBROUTINE] : doorUpdate(now):
-                  - Hitung Posisi Sudut Berdasarkan Waktu Tempuh & Kurva Sinus
-                  - Kirim Pulsa writeMicroseconds() ke Pin D13
-10. [TERMINATOR]: Selesai Siklus Pintu
+[STAGE 4: DHT11 TELEMETRY & OLED DISPLAY]
+20.[C4_1 - DECISION]   : Door Stationary & DHT11 Interval >= 2.1 s?
+                         |-- [No (Defer)] -> Jump to C4_6
+                         +-- [Yes]        -> Continue to C4_2
+21.[C4_2 - I/O]        : Read Temperature (C) & Humidity (%) from DHT11 Sensor (Pin D27)
+22.[C4_3 - DECISION]   : DHT11 Data Valid? (-10..80 C & 0..100%)
+                         |-- [Yes] -> [C4_4 - PROCESS] Store New Temp & Humidity
+                         |            (Reset Failure Counter) -> Continue to C4_6
+                         +-- [No]  -> [C4_5 - PROCESS] Retain Last Valid Reading
+                                      (Max 5 Consecutive Failures) -> Continue to C4_6
+23.[C4_6 - DISPLAY]    : SSD1306 OLED (D21/D22 Hot-Plug): Render IP, Wayang, Temp, &
+                         FIRE: SAFE -> Continue to Bottom Row (M06)
+
+[BOTTOM ROW: ACTUATOR OUTPUT, WEB SYNC & LOOP CHECK]
+24.[M06 - I/O]         : Send Door Servo PWM Signal (D13 & D12: 50 Hz, Open 0 deg /
+                         Soft-Close 180 deg)
+25.[M07 - DISPLAY]     : Update Web Dashboard (Devices Tab: 5 Cards & Distance Gauge,
+                         Pinout Info Tab)
+26.[M08 - DECISION]    : Is System Powered OFF?
+                         |-- [No (Continue Loop)] -> Loop back to M05
+                         +-- [Yes]                -> [M09 - TERMINATOR] End (System Halted)
 
 
 ================================================================================
-5. FLOWCHART 4: ALUR SENSOR SUHU & KELEMBABAN (DHT11)
+3. DIAGRAM 2: SUBSYSTEM 1 - FIRE DETECTION & EMERGENCY EVACUATION
 ================================================================================
-Bagan pendukung untuk fitur pemantauan suhu dan kelembaban ruangan.
 
-1. [TERMINATOR] : Mulai Siklus Suhu (dhtUpdate)
-      |
-      v
-2. [DECISION]   : Apakah Sudah Waktunya Baca DHT11? (Selang Waktu >= 1200 ms)
-                  ├──> [TIDAK] : Lewati Pembacaan Sensor Suhu
-                  └──> [YA]    :
-                         1. [PROSES] Kirim Sinyal Start Pulse ke Pin D27
-                         2. [I / O]  Baca Data 40-Bit dari DHT11 (Critical Timing)
-                         3. [PROSES] Verifikasi Checksum Data
-                         4. [DECISION] Apakah Data Valid?
-                                        ├──> [YA]    : Simpan Nilai Suhu (°C) & Kelembaban (%)
-                                        └──> [TIDAK] : Gunakan Nilai Terakhir (Toleransi s/d 4x Gagal)
-      |
-      v
-3. [TERMINATOR] : Selesai Siklus Suhu
+1. [A01 - TERMINATOR]  : Start
+2. [A02 - PREPARATION] : Initialize Flame Sensor D34 (Default Active-HIGH)
+3. [A03 - DECISION]    : Toggle Polarity via Web?
+                         |-- [Yes] -> [A03A - PROCESS] Invert Flame Polarity
+                         |            (Active-HIGH / Active-LOW) -> A04
+                         +-- [No]  -> A04
+4. [A04 - I/O]         : Read Digital Signal from Flame Sensor D34 (Every 5 ms)
+5. [A05 - PROCESS]     : Apply Anti-Flicker Filter (Active >= 15 ms / Streak >= 2)
+6. [A06 - DECISION]    : Is Fire Detected?
+                         |-- [No (Safe)]       -> [A12 - DISPLAY] Display "Safe / Normal"
+                         |                        Status on OLED & Web Dashboard -> A13
+                         +-- [Yes (Emergency)] -> A07
+7. [A07 - PROCESS]     : Emergency Evacuation Mode: Force Door Open to 0 deg &
+                         Lock Web "Close" Button
+8. [A08 - I/O]         : Drive Servo PWM (D13/D12) Open Immediately to 0 deg
+9. [A09 - DISPLAY]     : Flash OLED "! FIRE WARNING !" & Play Web Alarm (/alarm.mp3)
+10.[A10 - DECISION]    : Fire Extinguished & Quiet >= 1.2 Seconds?
+                         |-- [No (Fire Active)] -> Loop back to A04
+                         +-- [Yes]              -> A11
+11.[A11 - PROCESS]     : Clear Evacuation State, Stop Alarm, & Set Auto-Close Timer (+2 s)
+12.[A13 - TERMINATOR]  : End
 
 
 ================================================================================
-6. RINGKASAN TEKS SIAP PAKAI (UNTUK DIMASUKKAN KE BENTUK KOTAK DI SOFTWARE DRAWING)
+4. DIAGRAM 3: SUBSYSTEM 2 - DOOR SERVO CONTROL (OPEN & SOFT-CLOSE)
 ================================================================================
-Gunakan teks ringkas di bawah ini saat menyusun kotak di Draw.io, Canva, atau Word:
 
---- KOTAK FLOWCHART UTAMA ---
-1. [Oval]              : Mulai (Sistem Dihidupkan)
-2. [Persegi Panjang]   : Inisialisasi Servo, Sensor Api, Sentuh, Ultrasonik, DHT11, OLED
-3. [Persegi Panjang]   : Coba Koneksi ke WiFi Rumah (STA Mode)
-4. [Belah Ketupat]     : WiFi Terhubung (< 6 Detik)?
-   - Ya   -> [Persegi Panjang] Gunakan IP WiFi Router
-   - Tidak -> [Persegi Panjang] Buat Hotspot AP "RumahJoglo-SmartHome" (192.168.4.1)
-5. [Persegi Panjang]   : Jalankan Web Server ESP32 & Endpoint HTTP
-6. [Jajaran Genjang]   : Tampilkan IP & Status pada Layar OLED
-7. [Persegi Panjang]   : [Loop] Periksa Jaringan & Request Web Dashboard
-8. [Jajaran Genjang]   : [Loop] Baca Data Sensor (Api, Sentuh, Jarak, Suhu)
-9. [Persegi Panjang]   : [Loop] Proses Logika Otomasi Pintu (Touch/Ultrasonic/Flame)
-10. [Persegi Panjang]  : [Loop] Update Posisi Servo Pintu (Gerak Halus Non-Blocking)
-11. [Jajaran Genjang]  : [Loop] Perbarui Tampilan Layar OLED
-12. [Garis Kembali]    : Ulangi Siklus Loop
+1. [P01  - TERMINATOR] : Start
+2. [P02  - PREPARATION]: Initialize Servo D13/D12 (Closed 180 deg) & Ultrasonic
+                         HC-SR04 (D4/D5)
+3. [P03A - DECISION]   : Command == "Keep Open"?
+                         |-- [Yes] -> [P04A - I/O] Web Button: "Keep Open" ->
+                         |            [P05A - PROCESS] Open to 0 deg & Hold Open
+                         |            Continuously -> P11
+                         +-- [No]  -> P03B
+4. [P03B - DECISION]   : Command == "Open 2s"?
+                         |-- [Yes] -> [P04B - I/O] Web Button: "Open 2 Seconds" -> P06
+                         +-- [No]  -> P03C
+5. [P03C - DECISION]   : Trigger == Ultrasonic?
+                         |-- [Yes]        -> [P04C - I/O] Ultrasonic Sensor (D4/D5):
+                         |                   Measure Distance (cm) -> P05C
+                         +-- [No (Close)] -> [P04D - I/O] Web Button: "Close"
+                                             (If No Fire) -> P08
+6. [P05C - DECISION]   : Distance > 0 cm & <= Trigger Threshold?
+                         |-- [Yes] -> P06
+                         +-- [No]  -> P12 (End)
+7. [P06  - I/O]        : Drive Servo (D13/D12) Open to 0 deg (5000 ms Sine Curve)
+8. [P07  - DELAY]      : Hold Door Open (2 Seconds) (Extend While Object Present)
+9. [P08  - PROCESS]    : Soft-Close Door Smoothly from 0 deg to 180 deg (7000 ms)
+10.[P09  - DECISION]   : Object Detected While Closing?
+                         |-- [Yes (Anti-Pinch Reverse)] -> Loop back to P06
+                         +-- [No]                       -> P10
+11.[P10  - I/O]        : Send Smooth PWM Until Door Fully Closed at 180 deg
+12.[P11  - DISPLAY]    : Update Door Status on Web Dashboard (Closed / Open / Auto Cycle)
+13.[P12  - TERMINATOR] : End
 
---- KOTAK LOGIKA PINTU OTOMATIS ---
-1. [Belah Ketupat]     : Apakah Sensor Api Mendeteksi Api (D34)?
-   - Ya   -> [Persegi Panjang] Mode Evakuasi: Pintu Terbuka Penuh & Kunci Tutup
-   - Tidak -> Lanjut ke Pengecekan Sensor
-2. [Belah Ketupat]     : Cek Mode Pemicu:
-   - Sentuh     -> Apakah Nilai Sentuh D4 >= Ambang Batas?
-   - Ultrasonik -> Apakah Jarak <= 10 cm?
-   - Manual Web -> Menunggu Perintah Tombol Web
-3. [Belah Ketupat]     : Apakah Pemicu Terdeteksi?
-   - Ya   -> [Persegi Panjang] Buka Pintu Halus (5 Detik) / Perpanjang Waktu Tahan
-   - Tidak -> Lanjut
-4. [Belah Ketupat]     : Apakah Pintu Terbuka & Waktu Tahan 2 Detik Berakhir?
-   - Ya   -> [Persegi Panjang] Tutup Pintu Halus (Soft Close 7 Detik)
-   - Tidak -> Pertahankan Posisi Terbuka
 
---------------------------------------------------------------------------------
-TIPS TAMBAHAN UNTUK TAMPILAN FLOWCHART YANG PROFESIONAL:
-- Beri label "Ya" dan "Tidak" yang jelas di setiap cabang belah ketupat.
-- Gunakan warna yang konsisten:
-  * Hijau: Start / Kondisi Normal
-  * Kuning/Oranye: Decision (Percabangan)
-  * Merah: Kondisi Bahaya (Evakuasi Api)
-  * Biru: Proses Aktuator & Tampilan
-- Arahkan alur utama mengalir dari atas ke bawah (Top-to-Bottom).
+================================================================================
+5. DIAGRAM 4: SUBSYSTEM 3 - DHT11 TELEMETRY & HOT-PLUG OLED DISPLAY
+================================================================================
+
+1. [D01  - TERMINATOR] : Start
+2. [D02  - PREPARATION]: Initialize DHT11 (D27) & OLED I2C Bus (D21/D22)
+3. [D03  - DECISION]   : Door Stationary & DHT11 Interval >= 2.1 s?
+                         |-- [No (Defer)] -> D07
+                         +-- [Yes]        -> D04
+4. [D04  - I/O]        : Read Temperature (C) & Humidity (%) from DHT11 (Pin D27)
+5. [D05  - DECISION]   : Data Valid (-10..80 C & 0..100%)?
+                         |-- [Yes] -> [D06A - PROCESS] Store New Temp & Humidity
+                         |            (Reset Failure Counter) -> D07
+                         +-- [No]  -> [D06B - PROCESS] Retain Last Valid Reading
+                                      (Max 5 Consecutive Failures) -> D07
+6. [D07  - DECISION]   : OLED Display Active (0x3C / 0x3D)?
+                         |-- [Yes] -> [D08A - DISPLAY] Render IP, Wayang Animation,
+                         |            Temp C, Humidity %, & "FIRE: SAFE" on OLED -> D09
+                         +-- [No]  -> [D08B - PROCESS] Auto Re-Scan I2C Every 1500 ms
+                                      (Hot-Plug Recovery) -> D09
+7. [D09  - DISPLAY]    : Update "Room Temperature" Card & Progress Bar on Web Dashboard
+8. [D10  - TERMINATOR] : End
+
+
+================================================================================
+6. DIAGRAM 5: SUBSYSTEM 4 - WEB DASHBOARD WORKFLOW
+================================================================================
+
+1. [W01  - TERMINATOR] : Start
+2. [W02  - PREPARATION]: Connect Wi-Fi "RumahJoglo-SmartHome" & Open http://192.168.4.1
+3. [W03  - DISPLAY]    : Load Dashboard Page & Unlock Browser Audio Context
+4. [W04  - I/O]        : Send GET /api/status to ESP32 (Poll Every 1000 ms)
+5. [W05  - DECISION]   : Selected Navigation Tab?
+                         |-- [Devices]     -> [W06A - DISPLAY] "Devices" Tab (5 Cards):
+                         |                    Door, Flame Sensor, Door Trigger, Obstacle
+                         |                    Distance Gauge, & Room Temp -> W07
+                         +-- [Pinout Info] -> [W06B - DISPLAY] "Pinout Info" Tab:
+                                              Automation & Fire Evacuation Flow Diagram
+                                              + GPIO Specifications -> W07
+6. [W07  - DECISION]   : Flame Status == TRUE (Emergency)?
+                         |-- [Yes] -> [W07A - DISPLAY] Red Alert "FIRE HAZARD!" &
+                         |            Play Alarm (/alarm.mp3) -> W08
+                         +-- [No]  -> W08
+7. [W08  - DECISION]   : User Clicked Control Button (Door / Flame Polarity)?
+                         |-- [Yes] -> [W08A - I/O] Send GET (/api/door or /api/flame)
+                         |            & Receive Updated JSON -> W09
+                         +-- [No]  -> W09
+8. [W09  - DELAY]      : Wait Polling Interval (1000 ms)
+9. [W10  - DECISION]   : Close Dashboard Page?
+                         |-- [No]  -> Loop back to W04
+                         +-- [Yes] -> [W11 - TERMINATOR] End
 ================================================================================

@@ -18,30 +18,24 @@ void setTriggerMode(int m) {
   if ((m != MODE_MANUAL && m != MODE_ULTRASONIC) || m == mode) return;
   mode = m;
   wasTriggered = false;
-  terminalLog("Mode pemicu diubah ke %d", mode);
+  terminalLogTag(TerminalTag::Sys, "Mode pemicu diubah ke %d", mode);
 }
 
 void automationUpdate(unsigned long now) {
   flameUpdate(now);
-  // Tunda pulseIn ultrasonik hanya saat pintu sedang membuka; saat menutup pakai timeout pendek 6ms.
-  DoorPhase p = doorPhase();
-  bool allowUltrasonic = (mode == MODE_ULTRASONIC) && (p != DoorPhase::Opening);
-  ultrasonicUpdate(now, allowUltrasonic, p == DoorPhase::Closing);
+  // Ultrasonik memakai ISR non-blocking (0 us wait), sehingga tetap aktif di semua fase pintu
+  ultrasonicUpdate(now, mode == MODE_ULTRASONIC, false);
 
   // Evakuasi api (Prioritas Darurat Global): pintu dibuka penuh dan ditahan selama api terdeteksi.
   doorSetEvacuation(flameDetected());
 
-  bool triggered = false;
-  if (mode == MODE_ULTRASONIC) {
-    int d = ultrasonicDistance();
-    triggered = d > 0 && d <= cfg::MAX_DISTANCE_CM;
-  }
+  bool triggered = (mode == MODE_ULTRASONIC) && ultrasonicTriggered();
 
-  // Selama objek valid <= 10 cm, buka pintu otomatis (Servo D13).
+  // Selama objek valid terkonfirmasi <= 10 cm, buka/perpanjang pintu otomatis (Servo D13).
   // "Buka Terus" dan jeda "Tutup" manual dari web tidak diganggu oleh sensor.
   if (triggered && !doorIsManualOpen() && !doorIsManualClosing(now)) {
     if (!wasTriggered) {
-      terminalLog("Ultrasonik: objek %d cm -> buka pintu", ultrasonicDistance());
+      terminalLogTag(TerminalTag::Us, "Objek %d cm -> buka pintu", ultrasonicDistance());
     }
     doorStartCycle();
   }

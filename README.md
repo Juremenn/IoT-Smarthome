@@ -47,9 +47,9 @@ Firmware sistem kendali *smart home* miniatur Rumah Joglo berbasis **ESP32 (`esp
 
 ---
 
-## 3. Master Flowchart Sistem Terpadu (Standar ISO-5807)
+## 3. Master System Flowchart (ISO 5807 Standard)
 
-Diagram berikut memetakan keseluruhan siklus eksekusi *end-to-end* dari *power-on* (`setup`) hingga iterasi tak terbatas (`loop`), mencakup jaringan Access Point & HTTP server, akuisisi seluruh sensor, hierarki prioritas evakuasi darurat, kendali aktuator, pembaruan OLED, hingga log Serial.
+The diagram below maps the end-to-end execution cycle from power-on (`setup`) through the continuous main loop (`loop`), covering the standalone Wi-Fi Access Point and HTTP server, sensor acquisition, emergency fire evacuation priority, actuator updates, OLED rendering, and periodic serial logging.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Poppins, Inter, Segoe UI, sans-serif', 'fontSize': '12px', 'lineColor': '#475569'}, 'flowchart': {'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 40, 'padding': 12}}}%%
@@ -66,102 +66,102 @@ flowchart LR
 
     subgraph SG_BOOT["1. Boot & Hardware Setup"]
         direction TB
-        TERM_START(["Power ON ESP32"]):::terminator
-        PREP_HW{{"Inisialisasi Hardware:<br/>• Serial 115200 bps<br/>• Servo D13/D12 (180 deg)<br/>• Relay Kipas D23 OFF<br/>• OLED I2C D21/D22"}}:::preparation
-        PREP_NET{{"Inisialisasi Jaringan:<br/>• SoftAP: RumahJoglo<br/>• WebServer Port 80"}}:::preparation
-        IO_BOOT_LOG[/"Log Serial & Splash OLED"/]:::io_output
+        TERM_START(["ESP32 Power ON"]):::terminator
+        PREP_HW{{"Initialize Hardware:<br/>- Serial 115200 bps<br/>- Servo D13/D12 (180 deg)<br/>- Fan Relay D23 OFF<br/>- OLED I2C D21/D22"}}:::preparation
+        PREP_NET{{"Initialize Network:<br/>- SoftAP: RumahJoglo<br/>- WebServer Port 80"}}:::preparation
+        IO_BOOT_LOG[/"Serial Boot Log & OLED Splash"/]:::io_output
         DEC_INIT_TOUCH{"Mode == Touch?"}:::decision
-        PREP_TOUCH{{"Kalibrasi Touch0 D4"}}:::preparation
+        PREP_TOUCH{{"Calibrate Touch0 D4"}}:::preparation
 
         TERM_START --> PREP_HW
         PREP_HW --> PREP_NET
         PREP_NET --> IO_BOOT_LOG
         IO_BOOT_LOG --> DEC_INIT_TOUCH
-        DEC_INIT_TOUCH -->|Ya| PREP_TOUCH
+        DEC_INIT_TOUCH -->|Yes| PREP_TOUCH
     end
 
-    subgraph SG_NET["2. Jaringan AP & HTTP Server"]
+    subgraph SG_NET["2. Wi-Fi AP & HTTP Server"]
         direction TB
         CONN_LOOP_IN(("A")):::connector
         PROC_NOW["now = millis()"]:::process
         SUB_WEB[["webHandle() Port 80"]]:::subroutine
-        DEC_HTTP{"Ada Request<br/>HTTP?"}:::decision
-        PROC_API["Proses API Endpoint:<br/>/api/status, door, fan, flame"]:::process
-        IO_HTTP_RES[/"Response JSON / Web Asset"/]:::io_output
+        DEC_HTTP{"HTTP Request<br/>Pending?"}:::decision
+        PROC_API["Handle API Endpoint:<br/>/api/status, door, fan, flame"]:::process
+        IO_HTTP_RES[/"JSON Response / Web Asset"/]:::io_output
 
         CONN_LOOP_IN --> PROC_NOW
         PROC_NOW --> SUB_WEB
         SUB_WEB --> DEC_HTTP
-        DEC_HTTP -->|Ya| PROC_API
+        DEC_HTTP -->|Yes| PROC_API
         PROC_API --> IO_HTTP_RES
     end
 
-    subgraph SG_ACQ["3. Pembacaan Sensor"]
+    subgraph SG_ACQ["3. Sensor Acquisition"]
         direction TB
-        DEC_DHT_CHECK{"Pintu Diam &<br/>Jeda >= 2100ms?"}:::decision
-        IO_DHT[/"Baca DHT11 D27:<br/>Suhu & Kelembaban"/]:::io_input
-        IO_FLAME[/"Baca Flame D34:<br/>Sampling 5ms / Filter 15ms"/]:::io_input
-        DEC_MODE{"Pemicu Aktif?"}:::decision
-        IO_TOUCH[/"Baca Touch0 D4"/]:::io_input
-        IO_US[/"Baca HC-SR04:<br/>Trig D4, Echo D5"/]:::io_input
+        DEC_DHT_CHECK{"Door Stationary &<br/>Interval >= 2100 ms?"}:::decision
+        IO_DHT[/"Read DHT11 D27:<br/>Temp & Humidity"/]:::io_input
+        IO_FLAME[/"Read Flame D34:<br/>5 ms Poll / 15 ms Filter"/]:::io_input
+        DEC_MODE{"Active Trigger?"}:::decision
+        IO_TOUCH[/"Read Touch0 D4"/]:::io_input
+        IO_US[/"Read HC-SR04:<br/>Trig D4, Echo D5"/]:::io_input
 
-        DEC_DHT_CHECK -->|Ya| IO_DHT
-        DEC_DHT_CHECK -->|Tidak| IO_FLAME
+        DEC_DHT_CHECK -->|Yes| IO_DHT
+        DEC_DHT_CHECK -->|No| IO_FLAME
         IO_DHT --> IO_FLAME
         IO_FLAME --> DEC_MODE
         DEC_MODE -->|Touch| IO_TOUCH
         DEC_MODE -->|Ultrasonic| IO_US
     end
 
-    subgraph SG_LOGIC["4. Engine Logika & Prioritas"]
+    subgraph SG_LOGIC["4. Automation & Priority Engine"]
         direction TB
-        DEC_EVAC{"PRIORITAS 1:<br/>Api Terdeteksi?"}:::decision
-        PROC_EVAC["doorSetEvacuation(true):<br/>Paksa Buka Penuh 0 deg<br/>Kunci Tutup Manual Web"]:::emergency
-        DEC_MAN_OPEN{"PRIORITAS 2:<br/>Manual Buka Web?"}:::decision
-        DEC_TRIGGER{"PRIORITAS 3 & 4:<br/>Jarak <= 10cm / Touch?"}:::decision
-        SUB_CYCLE[["doorStartCycle():<br/>Buka 5000ms / Tahan 2000ms"]]:::subroutine
+        DEC_EVAC{"Priority 1:<br/>Flame Detected?"}:::decision
+        PROC_EVAC["doorSetEvacuation(true):<br/>Force Open to 0 deg<br/>Lock Web Close Command"]:::emergency
+        DEC_MAN_OPEN{"Priority 2:<br/>Manual Open Active?"}:::decision
+        DEC_TRIGGER{"Priority 3 & 4:<br/>Distance <= 10 cm / Touch?"}:::decision
+        SUB_CYCLE[["doorStartCycle():<br/>Open 5000 ms / Hold 2000 ms"]]:::subroutine
 
-        DEC_EVAC ==>|Ya - DARURAT| PROC_EVAC
-        DEC_EVAC -->|Aman| DEC_MAN_OPEN
-        DEC_MAN_OPEN -->|Tidak| DEC_TRIGGER
-        DEC_TRIGGER -->|Ya| SUB_CYCLE
+        DEC_EVAC ==>|Yes - Emergency| PROC_EVAC
+        DEC_EVAC -->|Safe| DEC_MAN_OPEN
+        DEC_MAN_OPEN -->|No| DEC_TRIGGER
+        DEC_TRIGGER -->|Yes| SUB_CYCLE
     end
 
-    subgraph SG_ACT["5. Aktuator & OLED"]
+    subgraph SG_ACT["5. Actuators & OLED"]
         direction TB
-        SUB_SERVO[["doorUpdate() Tiap 20ms:<br/>Kurva Sine Buka / Soft-Close"]]:::subroutine
-        IO_SERVO[/"Kirim PWM Servo D13/D12"/]:::io_output
-        IO_FAN[/"Kendali Relay Kipas D23"/]:::io_output
-        SUB_OLED[["oledUpdate() Tiap 50ms"]]:::subroutine
-        DEC_OLED_FIRE{"Api Aktif?"}:::decision
-        IO_OLED_FIRE[/"OLED: Peringatan Bahaya"/]:::emergency
-        IO_OLED_NORM[/"OLED: Animasi & Status"/]:::io_output
+        SUB_SERVO[["doorUpdate() Every 20 ms:<br/>Sine Open / Soft-Close"]]:::subroutine
+        IO_SERVO[/"Drive Servo PWM D13/D12"/]:::io_output
+        IO_FAN[/"Update Fan Relay D23"/]:::io_output
+        SUB_OLED[["oledUpdate() Every 50 ms"]]:::subroutine
+        DEC_OLED_FIRE{"Fire Active?"}:::decision
+        IO_OLED_FIRE[/"OLED: Fire Hazard Alert"/]:::emergency
+        IO_OLED_NORM[/"OLED: Animation & Status"/]:::io_output
 
         SUB_SERVO --> IO_SERVO
         IO_SERVO --> IO_FAN
         IO_FAN --> SUB_OLED
         SUB_OLED --> DEC_OLED_FIRE
-        DEC_OLED_FIRE ==>|Ya| IO_OLED_FIRE
-        DEC_OLED_FIRE -->|Tidak| IO_OLED_NORM
+        DEC_OLED_FIRE ==>|Yes| IO_OLED_FIRE
+        DEC_OLED_FIRE -->|No| IO_OLED_NORM
     end
 
     subgraph SG_SYNC["6. Sync & Return Loop"]
         direction TB
-        DEC_LOG{"Jeda Log >= 3000ms?"}:::decision
-        IO_LOG[/"Serial Log Telemetri 115200"/]:::io_output
+        DEC_LOG{"Log Interval >= 3000 ms?"}:::decision
+        IO_LOG[/"Serial Telemetry 115200 bps"/]:::io_output
         PROC_GUARD["delay(1)<br/>Watchdog Guard"]:::process
         CONN_LOOP_OUT(("A")):::connector
 
-        DEC_LOG -->|Ya| IO_LOG
-        DEC_LOG -->|Tidak| PROC_GUARD
+        DEC_LOG -->|Yes| IO_LOG
+        DEC_LOG -->|No| PROC_GUARD
         IO_LOG --> PROC_GUARD
         PROC_GUARD --> CONN_LOOP_OUT
     end
 
-    %% Koneksi Pipeline Horizontal Antar Modul (Kiri ke Kanan)
+    %% Horizontal Pipeline Connections Across Stages (Left to Right)
     PREP_TOUCH --> CONN_LOOP_IN
-    DEC_INIT_TOUCH -->|Tidak| CONN_LOOP_IN
-    DEC_HTTP -->|Tidak| DEC_DHT_CHECK
+    DEC_INIT_TOUCH -->|No| CONN_LOOP_IN
+    DEC_HTTP -->|No| DEC_DHT_CHECK
     IO_HTTP_RES --> DEC_DHT_CHECK
 
     IO_TOUCH --> DEC_EVAC
@@ -169,9 +169,9 @@ flowchart LR
     DEC_MODE -->|Manual| DEC_EVAC
 
     PROC_EVAC ==> SUB_SERVO
-    DEC_MAN_OPEN -->|Ya| SUB_SERVO
+    DEC_MAN_OPEN -->|Yes| SUB_SERVO
     SUB_CYCLE --> SUB_SERVO
-    DEC_TRIGGER -->|Tidak| SUB_SERVO
+    DEC_TRIGGER -->|No| SUB_SERVO
 
     IO_OLED_FIRE ==> DEC_LOG
     IO_OLED_NORM --> DEC_LOG
@@ -188,20 +188,20 @@ flowchart LR
 
 ---
 
-## 4. Legenda Simbol Flowchart (ISO-5807)
+## 4. ISO 5807 Flowchart Symbol Legend
 
-| Simbol ISO-5807 | Bentuk Mermaid | Prefix ID | Kelas Warna | Fungsi pada Diagram |
+| ISO 5807 Symbol | Mermaid Shape | ID Prefix | Color Class | Role in Diagram |
 | :--- | :--- | :--- | :--- | :--- |
-| **Terminator** | Kapsul / Oval `(["..."])` | `TERM_` | Hijau (`#DCFCE7` / `#16A34A`) | Titik mulai eksekusi saat ESP32 *Power ON* |
-| **Preparation** | Heksagon `{{"..."}}` | `PREP_` | Indigo (`#E0E7FF` / `#4F46E5`) | Inisialisasi pin, PWM, I2C, kalibrasi sensor, Wi-Fi AP & WebServer di `setup()` |
-| **Input / Output (Input)** | Jajaran Genjang `[/"..."/]` | `IO_` | Biru Langit (`#E0F2FE` / `#0284C7`) | Pembacaan sensor fisik (`D34`, `D4`, `D5`, `D27`) dan penerimaan HTTP request |
-| **Input / Output (Output)** | Jajaran Genjang `[/"..."/]` | `IO_` | Oranye (`#FFEDD5` / `#EA580C`) | Pengiriman pulsa servo, sinyal relay kipas, render OLED, respons HTTP, dan log Serial |
-| **Process** | Persegi Panjang `["..."]` | `PROC_` | Abu Cerah (`#F8FAFC` / `#475569`) | Kalkulasi internal CPU, kurva sinus, konversi jarak, pengelolaan *flag* & `delay(1)` |
-| **Decision** | Belah Ketupat `{"..."}` | `DEC_` | Kuning (`#FEF9C3` / `#CA8A04`) | Evaluasi kondisi logika & ambang batas dengan ≥ 2 cabang berlabel |
-| **Predefined Process** | Persegi Garis Ganda `[["..."]]` | `SUB_` | Ungu (`#F3E8FF` / `#9333EA`) | Pemanggilan fungsi modular (`webHandle`, `doorStartCycle`, `doorUpdate`, `oledUpdate`) |
-| **Emergency Override** | Persegi / Jajaran Genjang | `PROC_` / `IO_` | Merah (`#FEE2E2` / `#DC2626`) | Jalur keselamatan darurat evakuasi api & peringatan visual berkedip |
-| **On-Page Reference** | Lingkaran `(("..."))` | `CONN_` | Slate (`#F1F5F9` / `#334155`) | Penghubung lompatan *return loop* (`A → A`) pada halaman yang sama |
-| **Flowline Normal / Kritis** | `-->` / `==>` | — | Slate `#475569` | Panah tipis untuk alur eksekusi normal; panah tebal (`==>`) untuk jalur darurat api |
+| **Terminator** | Capsule / Oval `(["..."])` | `TERM_` | Green (`#DCFCE7` / `#16A34A`) | Execution entry point on ESP32 power-on |
+| **Preparation** | Hexagon `{{"..."}}` | `PREP_` | Indigo (`#E0E7FF` / `#4F46E5`) | Pin setup, PWM timers, I2C init, sensor calibration, Wi-Fi AP, and WebServer in `setup()` |
+| **Input / Output (Input)** | Parallelogram `[/"..."/]` | `IO_` | Sky Blue (`#E0F2FE` / `#0284C7`) | Physical sensor reads (`D34`, `D4`, `D5`, `D27`) and incoming HTTP requests |
+| **Input / Output (Output)** | Parallelogram `[/"..."/]` | `IO_` | Orange (`#FFEDD5` / `#EA580C`) | Servo PWM output, fan relay signal, OLED rendering, HTTP responses, and Serial telemetry |
+| **Process** | Rectangle `["..."]` | `PROC_` | Light Slate (`#F8FAFC` / `#475569`) | Internal CPU calculations, sine and soft-close curves, flag handling, and `delay(1)` |
+| **Decision** | Diamond `{"..."}` | `DEC_` | Yellow (`#FEF9C3` / `#CA8A04`) | Conditional and threshold checks with labeled outgoing branches |
+| **Predefined Process** | Double-Bordered Rectangle `[["..."]]` | `SUB_` | Purple (`#F3E8FF` / `#9333EA`) | Modular subroutine calls (`webHandle`, `doorStartCycle`, `doorUpdate`, `oledUpdate`) |
+| **Emergency Override** | Rectangle / Parallelogram | `PROC_` / `IO_` | Red (`#FEE2E2` / `#DC2626`) | Fire evacuation safety override and flashing danger alert |
+| **On-Page Reference** | Circle `(("..."))` | `CONN_` | Slate (`#F1F5F9` / `#334155`) | Same-page return loop connector (`A` to `A`) |
+| **Normal / Critical Flowline** | `-->` / `==>` | N/A | Slate `#475569` | Standard arrow for normal execution; thick arrow (`==>`) for fire evacuation override |
 
 ---
 
@@ -310,7 +310,7 @@ Jika sedang tidak memegang perangkat ESP32 fisik, Anda dapat menjalankan mock se
 
 | Endpoint | Parameter Query | Respons / Efek |
 | :--- | :--- | :--- |
-| `/api/status` | — | JSON lengkap status sensor, pintu, kipas, OLED, IP, dan `uptime` |
+| `/api/status` | None | JSON lengkap status sensor, pintu, kipas, OLED, IP, dan `uptime` |
 | `/api/door` | `action=auto\|open\|close` atau `action=set_mode&mode=0..3` | Eksekusi siklus/buka/tutup pintu atau ubah `triggerMode` (`0`=Manual, `1`=Sentuh, `2`=Api, `3`=Ultrasonik) |
 | `/api/fan` | `toggle=1`, `state=on\|off\|1\|0`, atau `toggle_logic=1` | Kendali ON/OFF relay kipas `GPIO 23` atau balik polaritas `Active-LOW`/`Active-HIGH` |
 | `/api/flame` | `toggle_logic=1` | Balik polaritas deteksi sensor api `GPIO 34` (`Active-HIGH` / `Active-LOW`) |

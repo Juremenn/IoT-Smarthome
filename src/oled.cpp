@@ -110,7 +110,6 @@ bool detect(bool force) {
     }
   } else if (err3C >= 4 || err3D >= 4) {
     Wire.end();
-    delay(5);
     Wire.begin(cfg::PIN_SDA, cfg::PIN_SCL);
   }
   return false;
@@ -143,8 +142,8 @@ void drawCleanMain() {
   display.clearDisplay();
   drawIpHeader();
 
-  // Ayunan halus 1 px pada sepasang wayang
-  int8_t sway = ((animFrame / 24) % 2 == 0) ? 0 : 1;
+  // Ayunan halus 1 px pada sepasang wayang (~1 detik per ayunan pada 2 FPS)
+  int8_t sway = ((animFrame / 2) % 2 == 0) ? 0 : 1;
   drawWayangPair(sway);
 
   // --- AREA TENGAH CLEAN (X = 24..104, Y = 16..63) ---
@@ -279,7 +278,6 @@ void oledShowSplash() {
   display.setTextColor(SSD1306_WHITE);
 
   display.display();
-  delay(150);
 }
 
 void oledUpdate(unsigned long now) {
@@ -287,12 +285,13 @@ void oledUpdate(unsigned long now) {
     detect(false);
     return;
   }
-  // Frame refresh 50 ms (~20 FPS)
-  if (now - lastDraw < 50) return;
+  bool fire = flameDetected();
+  unsigned long interval = fire ? cfg::OLED_FIRE_REFRESH_MS : cfg::OLED_REFRESH_MS;
+  if (now - lastDraw < interval) return;
   lastDraw = now;
   animFrame++;
 
-  if (flameDetected()) {
+  if (fire) {
     drawFire(now);
   } else {
     drawCleanMain();

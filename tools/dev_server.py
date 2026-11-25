@@ -44,6 +44,8 @@ class SmartHomeState:
         # DHT11
         self.temp = 28.4
         self.humidity = 64.0
+        self.tempOffset = 0.0
+        self.humOffset = 0.0
         self.tempValid = True
         self.dhtStatus = "OK"
         
@@ -98,10 +100,13 @@ class SmartHomeState:
                 "echoPin": int(self.echoPin),
                 "distance": int(self.distance),
                 "maxDistance": int(self.maxDistance),
-                "temp": round(float(self.temp), 1),
-                "humidity": round(float(self.humidity), 1),
+                "temp": round(float(self.temp + self.tempOffset), 1),
+                "humidity": round(max(0.0, min(100.0, float(self.humidity + self.humOffset))), 1),
                 "tempValid": bool(self.tempValid),
                 "dhtStatus": str(self.dhtStatus),
+                "dhtCalibrated": bool(abs(self.tempOffset) > 0.001 or abs(self.humOffset) > 0.001),
+                "tempOffset": round(float(self.tempOffset), 1),
+                "humOffset": round(float(self.humOffset), 1),
                 "rawEcho": int(self.rawEcho),
                 "ip": str(self.ip),
                 "uptime": uptime_sec,
@@ -225,6 +230,25 @@ class MockServerHandler(BaseHTTPRequestHandler):
             with state.lock:
                 if "toggle_logic" in query:
                     state.flameActiveHigh = not state.flameActiveHigh
+            self.send_json(state.to_dict())
+            return
+
+        elif path == "/api/calibrate":
+            with state.lock:
+                if "reset" in query:
+                    state.tempOffset = 0.0
+                    state.humOffset = 0.0
+                else:
+                    if "temp_offset" in query:
+                        try:
+                            state.tempOffset = max(-30.0, min(30.0, float(query["temp_offset"][0])))
+                        except ValueError:
+                            pass
+                    if "hum_offset" in query:
+                        try:
+                            state.humOffset = max(-50.0, min(50.0, float(query["hum_offset"][0])))
+                        except ValueError:
+                            pass
             self.send_json(state.to_dict())
             return
 

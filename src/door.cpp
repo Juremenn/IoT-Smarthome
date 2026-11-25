@@ -89,8 +89,8 @@ void startMove(float target, bool urgent = false) {
   closeAt = 0;
   fastMove = urgent;
   phase = opening ? DoorPhase::Opening : DoorPhase::Closing;
-  terminalLog("Pintu %s (%lu ms%s)", opening ? "membuka" : "menutup", moveDuration,
-              urgent ? ", EVAKUASI" : "");
+  terminalLogTag(TerminalTag::Door, "Pintu %s (%lu ms%s)", opening ? "membuka" : "menutup",
+                 moveDuration, urgent ? ", EVAKUASI" : "");
 }
 
 bool isOpenOrOpening() { return phase == DoorPhase::Open || phase == DoorPhase::Opening; }
@@ -110,7 +110,7 @@ void doorBegin() {
   servo2.setPeriodHertz(50);
   servo2.attach(cfg::PIN_SERVO_ALT, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
 
-  terminalLog("Servo siap (D%d/%d)", cfg::PIN_SERVO, cfg::PIN_SERVO_ALT);
+  terminalLogTag(TerminalTag::Door, "Servo siap (D%d/%d)", cfg::PIN_SERVO, cfg::PIN_SERVO_ALT);
 
   writeServo(0.0f);
 }
@@ -134,11 +134,11 @@ void doorUpdate(unsigned long now) {
       leafAngle = moveTo;
       if (moveTo > HALF) {
         onFullyOpen(now);
-        terminalLog("Pintu terbuka penuh (gap max %lu ms)", maxGap);
+        terminalLogTag(TerminalTag::Door, "Pintu terbuka penuh (gap max %lu ms)", maxGap);
       } else {
         phase = DoorPhase::Closed;
         autoCycle = false;
-        terminalLog("Pintu tertutup rapat (gap max %lu ms)", maxGap);
+        terminalLogTag(TerminalTag::Door, "Pintu tertutup rapat (gap max %lu ms)", maxGap);
       }
     }
     return;
@@ -165,12 +165,12 @@ void doorOpenManual() {
   autoCycle = false;
   closeAt = 0;
   if (!isOpenOrOpening()) startMove(OPEN);
-  terminalLog("Pintu dibuka manual via Web");
+  terminalLogTag(TerminalTag::Door, "Pintu dibuka manual via Web");
 }
 
 void doorCloseManual() {
   if (evacuation) {
-    terminalLog("Tutup ditolak: evakuasi api aktif");
+    terminalLogTag(TerminalTag::Door, "Tutup ditolak: evakuasi api aktif");
     return;
   }
   manualOpen = false;
@@ -178,7 +178,7 @@ void doorCloseManual() {
   closeAt = 0;
   manualCloseUntil = millis() + 3000;
   if (phase != DoorPhase::Closed && phase != DoorPhase::Closing) startMove(0.0f);
-  terminalLog("Pintu ditutup manual via Web");
+  terminalLogTag(TerminalTag::Door, "Pintu ditutup manual via Web");
 }
 
 void doorSetEvacuation(bool active) {

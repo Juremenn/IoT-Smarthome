@@ -80,6 +80,18 @@ def main():
     assert data["door"] == "TERTUTUP"
     print(" [PASS] Fire cleared -> door returned to TERTUTUP")
 
+    # 7. Test /api/calibrate live offset & reset
+    st, ct, body = get("/api/calibrate?temp_offset=-7.0&hum_offset=-25.0")
+    data = json.loads(body.decode("utf-8"))
+    assert data["dhtCalibrated"] is True
+    assert data["tempOffset"] == -7.0 and data["humOffset"] == -25.0
+    assert data["temp"] == 28.5, f"Expected 35.5 - 7.0 = 28.5, got {data['temp']}"
+    st, ct, body = get("/api/calibrate?reset=1")
+    data = json.loads(body.decode("utf-8"))
+    assert data["dhtCalibrated"] is False
+    assert data["tempOffset"] == 0.0 and data["humOffset"] == 0.0
+    print(" [PASS] GET /api/calibrate (offset apply & reset)")
+
     print("\nALL DEV SERVER TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":

@@ -1,28 +1,25 @@
 /**
- * Rumah Joglo - Smart Home IoT Controller & Hardware Abstraction Layer
- * Yogyakarta Keraton Minimalism Edition
+ * Rumah Joglo - Smart Home Controller
+ * Optimistic UI + Command Priority (Zero-Delay Control)
  */
 
 (() => {
   'use strict';
 
-  // Hardware Abstraction Layer Configuration
   const CONFIG = {
-    USE_SIMULATOR: true,
-    ESP32_BASE_URL: window.location.origin || "http://127.0.0.1:8080",
-    POLL_INTERVAL_MS: 250,
+    ESP32_BASE_URL: window.location.origin || 'http://127.0.0.1:8080',
+    POLL_INTERVAL_MS: 400,
     ULTRASONIC_TRIGGER_CM: 10
   };
 
-  // State Management
   let lastData = null;
-  let isCountdownActive = false;
-  let countdownTimer = null;
+  let pollTimer = null;
+  let pollController = null;
+  let stateVersion = 0;
   let isAudioUnlocked = false;
 
   const $ = id => document.getElementById(id);
 
-  // SVG Icons for Door States
   const SVG_DOOR_CLOSED = `
     <path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/>
     <path d="M2 20h20"/>
@@ -36,13 +33,14 @@
     <circle cx="10" cy="12" r="1" fill="currentColor"/>
   `;
 
-  // Network Fetch with Timeout
-  async function fetchEndpoint(path) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
+  async function fetchJson(path, externalController) {
+    const controller = externalController || new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     try {
-      const url = `${CONFIG.ESP32_BASE_URL}${path}`;
-      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      const res = await fetch(`${CONFIG.ESP32_BASE_URL}${path}`, {
+        cache: 'no-store',
+        signal: controller.signal
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } finally {
@@ -50,334 +48,311 @@
     }
   }
 
-  // Polling Loop
-  async function pollStatus() {
-    try {
-      const data = await fetchEndpoint('/api/status');
-      renderDashboard(data);
-    } catch (err) {
-      const oledEl = $('oledStatusText');
-      if (oledEl) {
-        oledEl.textContent = 'Koneksi terputus \u00B7 Menunggu ESP32...';
-        oledEl.classList.add('is-offline');
-      }
-    }
-    setTimeout(pollStatus, CONFIG.POLL_INTERVAL_MS);
+  function showConnectionBanner(message, isError) {
+    const banner = $('connBanner');
+    const msg = $('connMessage');
+    const retryBtn = $('btnRetryConn');
+    if (!banner || !msg) return;
+
+    banner.hidden = false;
+    banner.classList.toggle('is-error', Boolean(isError));
+    msg.textContent = message;
+    if (retryBtn) retryBtn.hidden = !isError;
   }
 
-  // Render Dashboard
-  function renderDashboard(d) {
-    lastData = d;
-    const mode = d.doorTriggerMode;
-    const isEvacuation = Boolean(d.flame);
+  function hideConnectionBanner() {
+    const banner = $('connBanner');
+    if (banner) banner.hidden = true;
+  }
 
-    const oledEl = $('oledStatusText');
-    if (oledEl) {
-      oledEl.classList.remove('is-offline');
-      if (d.oled) {
-        const addr = d.oledAddress && d.oledAddress !== 'none' ? ` (${d.oledAddress})` : '';
-        oledEl.textContent = d.flame
-          ? `OLED: Peringatan Api${addr}`
-          : `OLED: Aktif${addr}`;
-      } else {
-        oledEl.textContent = 'OLED: Offline';
-      }
+  function schedulePoll(delayMs = CONFIG.POLL_INTERVAL_MS) {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = setTimeout(pollStatus, delayMs);
+  }
+
+  function abortActivePoll() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
     }
+    if (pollController) {
+      pollController.abort();
+      pollController = null;
+    }
+  }
 
-    // 1. Pintu (Door Card)
+  async function pollStatus() {
+    pollTimer = null;
+    const myVersion = stateVersion;
+    const ctrl = new AbortController();
+    pollController = ctrl;
+    try {
+      const data = await fetchJson('/api/status', ctrl);
+      if (myVersion === stateVersion) {
+        hideConnectionBanner();
+        renderDashboard(data);
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      if (myVersion === stateVersion) {
+        showConnectionBanner('Koneksi ESP32 terputus. Periksa Wi-Fi perangkat.', true);
+      }
+    } finally {
+      if (pollController === ctrl) pollController = null;
+      if (!pollTimer) schedulePoll();
+    }
+  }
+
+  function applyDoorVisual(doorMode, isEvacuation) {
     const doorBadge = $('doorIconBadge');
     const doorSvg = $('doorIconSvg');
-    const statusText = $('doorStatusText');
-    const subText = $('doorSubText');
+    const doorState = $('doorStatusText');
+    const doorHint = $('doorHint');
     const btnAuto = $('btnDoorAuto');
-    const btnAutoLabel = $('btnDoorAutoLabel');
+    const btnOpen = $('btnDoorOpen');
     const btnClose = $('btnDoorClose');
 
-    const isOpen = d.door !== 'TERTUTUP';
+    const isOpen = isEvacuation || doorMode !== 'TERTUTUP';
+    doorSvg.innerHTML = isOpen ? SVG_DOOR_OPEN : SVG_DOOR_CLOSED;
 
-    if (isOpen) {
-      doorSvg.innerHTML = SVG_DOOR_OPEN;
-      doorBadge.classList.remove('badge-terracotta');
-      doorBadge.classList.add('badge-celadon');
+    if (isEvacuation) {
+      doorBadge.className = 'icon-box icon-danger';
+      doorState.textContent = 'Evakuasi';
+      doorHint.textContent = 'Darurat api';
+      doorHint.className = 'state-tag is-danger';
+      doorHint.hidden = false;
+      btnAuto.disabled = true;
+      btnOpen.disabled = true;
+      btnClose.disabled = true;
+      return;
+    }
+
+    btnAuto.disabled = false;
+    btnOpen.disabled = false;
+    btnClose.disabled = false;
+
+    if (doorMode === 'AUTO_CYCLE') {
+      doorBadge.className = 'icon-box icon-safe';
+      doorState.textContent = 'Terbuka';
+      doorHint.textContent = 'Otomatis';
+      doorHint.className = 'state-tag';
+      doorHint.hidden = false;
+    } else if (isOpen) {
+      doorBadge.className = 'icon-box icon-safe';
+      doorState.textContent = 'Terbuka';
+      doorHint.textContent = 'Manual';
+      doorHint.className = 'state-tag';
+      doorHint.hidden = false;
     } else {
-      doorSvg.innerHTML = SVG_DOOR_CLOSED;
-      doorBadge.classList.remove('badge-celadon');
-      doorBadge.classList.add('badge-terracotta');
+      doorBadge.className = 'icon-box icon-terracotta';
+      doorState.textContent = 'Tertutup';
+      doorHint.hidden = true;
     }
+  }
 
-    if (!isCountdownActive) {
-      if (isEvacuation) {
-        statusText.textContent = 'Evakuasi Darurat';
-        subText.textContent = 'Bahaya Api';
-        btnClose.disabled = true;
-      } else if (d.door === 'AUTO_CYCLE') {
-        statusText.textContent = 'Terbuka (Otomatis)';
-        subText.textContent = 'Otomatis';
-        btnClose.disabled = false;
-      } else if (isOpen) {
-        statusText.textContent = 'Terbuka';
-        subText.textContent = 'Terbuka Terus';
-        btnClose.disabled = false;
-      } else {
-        statusText.textContent = 'Tertutup';
-        subText.textContent = 'Standby';
-        btnClose.disabled = false;
-        btnAuto.disabled = false;
-        btnAutoLabel.textContent = 'Buka 2 detik';
-      }
-    }
+  function renderDashboard(d) {
+    lastData = d;
+    const isEvacuation = Boolean(d.flame);
 
-    // 2. Api (Flame Card & Flow 2 Animation)
+    // 1. Pintu
+    applyDoorVisual(d.door, isEvacuation);
+
+    // 2. Sensor Api
     const cardFlame = $('cardFlame');
     const flameBadge = $('flameBadge');
     const flameStatus = $('flameStatusText');
-    const flameSub = $('flameSubText');
-    const flameTelem = $('flameTelemetry');
     const flameBtn = $('btnFlameToggleLogic');
-    const flameSettingDesc = $('settingFlamePolarityDesc');
-
-    const conduit2A = $('conduit2A');
-    const conduit2B = $('conduit2B');
-    const flowNodeEvac = $('flowNodeEvac');
 
     if (d.flame) {
-      cardFlame.classList.add('card-danger-active');
-      flameBadge.className = 'icon-badge badge-danger';
-      flameStatus.textContent = 'BAHAYA: API!';
-      flameSub.textContent = 'Bahaya Api';
-      if (conduit2A) conduit2A.classList.add('conduit-danger-active');
-      if (conduit2B) conduit2B.classList.add('conduit-danger-active');
-      if (flowNodeEvac) flowNodeEvac.classList.add('node-danger-active');
+      cardFlame.classList.add('is-danger');
+      flameBadge.className = 'icon-box icon-danger';
+      flameStatus.textContent = 'Bahaya api!';
+      flameStatus.className = 'flame-state state-danger';
       playAlarmAudio(true);
     } else {
-      cardFlame.classList.remove('card-danger-active');
-      flameBadge.className = 'icon-badge badge-celadon';
+      cardFlame.classList.remove('is-danger');
+      flameBadge.className = 'icon-box icon-safe';
       flameStatus.textContent = 'Aman';
-      flameSub.textContent = 'Normal';
-      if (conduit2A) conduit2A.classList.remove('conduit-danger-active');
-      if (conduit2B) conduit2B.classList.remove('conduit-danger-active');
-      if (flowNodeEvac) flowNodeEvac.classList.remove('node-danger-active');
+      flameStatus.className = 'flame-state state-safe';
       playAlarmAudio(false);
     }
 
-    const flameModeStr = d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW';
-    flameTelem.textContent = `D34: ${d.flameRaw} (${flameModeStr})`;
-    flameBtn.textContent = d.flameActiveHigh ? 'Ganti: Active-LOW' : 'Ganti: Active-HIGH';
-    if (flameSettingDesc) {
-      flameSettingDesc.textContent = d.flameActiveHigh
-        ? 'Active-HIGH (1: Api, 0: Aman)'
-        : 'Active-LOW (0: Api, 1: Aman)';
-    }
+    const currentLogic = d.flameActiveHigh ? 'Active-HIGH' : 'Active-LOW';
+    const nextLogic = d.flameActiveHigh ? 'Active-LOW' : 'Active-HIGH';
+    flameBtn.textContent = currentLogic;
+    flameBtn.setAttribute('aria-label', `Logika sensor api: ${currentLogic}. Tekan untuk ganti ke ${nextLogic}`);
+    flameBtn.title = `Ganti ke ${nextLogic}`;
 
-    // 3. Pemicu (Trigger Card & Flow 1 Animation)
-    const triggerBadge = $('triggerBadge');
-    const triggerMode = $('triggerModeText');
-    const triggerSub = $('triggerStatusSub');
-    const triggerDetail = $('triggerDetailText');
-    const conduit1A = $('conduit1A');
-    const conduit1B = $('conduit1B');
-    const flowNodeServo = $('flowNodeServo');
-
+    // 3. Jarak (Ultrasonik + Pemicu Pintu)
     const threshold = (typeof d.maxDistance === 'number' && d.maxDistance > 0)
       ? d.maxDistance
       : CONFIG.ULTRASONIC_TRIGGER_CM;
-    const isTriggered = (mode === 3 && d.distance > 0 && d.distance <= threshold);
-    const flowUsThreshold = $('flowUsThreshold');
-    if (flowUsThreshold) flowUsThreshold.textContent = `\u2264 ${threshold} cm`;
-
-    triggerMode.textContent = 'Ultrasonik';
-    const triggerPinInfo = $('triggerPinInfo');
-    if (triggerPinInfo && typeof d.trigPin === 'number' && typeof d.echoPin === 'number') {
-      triggerPinInfo.textContent = `D${d.trigPin} (Trig) \u00B7 D${d.echoPin} (Echo)`;
-    }
-    if (isTriggered) {
-      triggerBadge.classList.add('ripple-active');
-      triggerSub.textContent = 'Objek Terdeteksi';
-      triggerSub.style.color = 'var(--accent-terracotta)';
-      triggerDetail.textContent = `Terdeteksi ${d.distance} cm`;
-      if (conduit1A) conduit1A.classList.add('conduit-triggered');
-      if (conduit1B) conduit1B.classList.add('conduit-triggered');
-      if (flowNodeServo) flowNodeServo.classList.add('node-triggered');
-    } else {
-      triggerBadge.classList.remove('ripple-active');
-      triggerSub.textContent = 'Standby';
-      triggerSub.style.color = 'var(--text-secondary)';
-      triggerDetail.textContent = `Pemicu \u2264 ${threshold} cm`;
-      if (conduit1A) conduit1A.classList.remove('conduit-triggered');
-      if (conduit1B) conduit1B.classList.remove('conduit-triggered');
-      if (flowNodeServo) flowNodeServo.classList.remove('node-triggered');
-    }
-
-    // 4. Jarak (Distance Card & 4-Segment Gauge)
+    const dist = d.distance;
     const distNum = $('distMetricNum');
     const distSub = $('distSubLabel');
-    const s1 = $('seg1');
-    const s2 = $('seg2');
-    const s3 = $('seg3');
-    const s4 = $('seg4');
+    const segs = [$('seg1'), $('seg2'), $('seg3'), $('seg4')];
 
-    const dist = d.distance;
     distNum.textContent = dist > 0 ? dist : '--';
-
-    // Reset gauge segments
-    [s1, s2, s3, s4].forEach(el => {
-      el.className = 'segment';
+    segs.forEach(el => {
+      if (el) el.className = 'segment';
     });
 
+    const isTriggered = (d.doorTriggerMode === 3 && dist > 0 && dist <= threshold);
+    distSub.classList.toggle('is-triggered', isTriggered);
+
     if (dist <= 0) {
-      distSub.textContent = 'Di Luar Jangkauan';
+      distSub.textContent = 'Di luar jangkauan';
     } else if (dist <= threshold) {
-      s1.classList.add('active-1');
-      distSub.textContent = 'Sangat Dekat';
+      segs[0].classList.add('active-1');
+      distSub.textContent = isTriggered ? 'Pintu dipicu' : 'Sangat dekat';
     } else if (dist <= 35) {
-      s1.classList.add('active-1');
-      s2.classList.add('active-2');
-      distSub.textContent = 'Mendekat';
+      segs[0].classList.add('active-1');
+      segs[1].classList.add('active-2');
+      distSub.textContent = `Auto \u2264 ${threshold} cm`;
     } else if (dist <= 65) {
-      s1.classList.add('active-1');
-      s2.classList.add('active-2');
-      s3.classList.add('active-3');
-      distSub.textContent = 'Sedang';
+      segs[0].classList.add('active-1');
+      segs[1].classList.add('active-2');
+      segs[2].classList.add('active-3');
+      distSub.textContent = `Auto \u2264 ${threshold} cm`;
     } else {
-      s1.classList.add('active-1');
-      s2.classList.add('active-2');
-      s3.classList.add('active-3');
-      s4.classList.add('active-4');
-      distSub.textContent = 'Standby';
+      segs[0].classList.add('active-1');
+      segs[1].classList.add('active-2');
+      segs[2].classList.add('active-3');
+      segs[3].classList.add('active-4');
+      distSub.textContent = `Auto \u2264 ${threshold} cm`;
     }
 
-    // 5. Suhu Ruang & Kelembaban (DHT11 Card & Flow 3 Animation)
+    const infoRuleDoor = $('infoRuleDoor');
+    if (infoRuleDoor) {
+      infoRuleDoor.textContent = `Jarak \u2264 ${threshold} cm buka halus 7 dtk, tahan 2 dtk`;
+    }
+    const infoUltrasonicPins = $('infoUltrasonicPins');
+    if (infoUltrasonicPins && typeof d.trigPin === 'number' && typeof d.echoPin === 'number') {
+      infoUltrasonicPins.textContent = `D${d.trigPin} Trig, D${d.echoPin} Echo`;
+    }
+
+    // 4. Suhu & Kelembaban (DHT11)
     const tempNum = $('tempMetricNum');
     const tempFill = $('tempProgressFill');
     const humText = $('humText');
-    const conduit3A = $('conduit3A');
-    const conduit3B = $('conduit3B');
-    const flowNodeDhtOut = $('flowNodeDhtOut');
 
     if (d.tempValid && typeof d.temp === 'number') {
       tempNum.textContent = d.temp.toFixed(1);
-      // Range 15C to 45C
       const percent = Math.min(100, Math.max(0, ((d.temp - 15) / 30) * 100));
       tempFill.style.width = `${percent}%`;
       humText.textContent = `Lembab ${d.humidity.toFixed(0)}%`;
-      if (conduit3A) conduit3A.classList.add('conduit-triggered');
-      if (conduit3B) conduit3B.classList.add('conduit-triggered');
-      if (flowNodeDhtOut) flowNodeDhtOut.classList.add('node-triggered');
     } else {
       tempNum.textContent = '--.-';
       tempFill.style.width = '0%';
       humText.textContent = d.dhtStatus || 'Menunggu sensor...';
-      if (conduit3A) conduit3A.classList.remove('conduit-triggered');
-      if (conduit3B) conduit3B.classList.remove('conduit-triggered');
-      if (flowNodeDhtOut) flowNodeDhtOut.classList.remove('node-triggered');
     }
   }
 
-  // Door Control Actions
-  $('btnDoorAuto').addEventListener('click', async () => {
-    if (isCountdownActive) return;
-    isCountdownActive = true;
-    const btn = $('btnDoorAuto');
-    const label = $('btnDoorAutoLabel');
-    const statusText = $('doorStatusText');
-    const subText = $('doorSubText');
-
-    btn.disabled = true;
-    statusText.textContent = 'Terbuka (2d...)';
-    subText.textContent = 'Pintu Terbuka Otomatis';
-    label.textContent = 'Menghitung 2s...';
+  // Kirim perintah prioritas: hentikan poll yang sedang berjalan, render optimistik, lalu sinkronkan
+  async function sendCommand(path, optimisticFn, errorMessage) {
+    abortActivePoll();
+    const myVersion = ++stateVersion;
+    if (optimisticFn) optimisticFn();
 
     try {
-      await fetchEndpoint('/api/door?action=auto');
-    } catch (e) {}
-
-    let remaining = 2;
-    countdownTimer = setInterval(() => {
-      remaining -= 1;
-      if (remaining > 0) {
-        statusText.textContent = `Terbuka (${remaining}d...)`;
-        label.textContent = `Menghitung ${remaining}s...`;
-      } else {
-        clearInterval(countdownTimer);
-        isCountdownActive = false;
-        statusText.textContent = 'Menutup';
-        subText.textContent = 'Kembali Tertutup Halus';
-        label.textContent = 'Buka 2 detik';
-        btn.disabled = false;
+      const d = await fetchJson(path);
+      if (myVersion === stateVersion) {
+        hideConnectionBanner();
+        renderDashboard(d);
       }
-    }, 1000);
-  });
-
-  $('btnDoorOpen').addEventListener('click', async () => {
-    if (isCountdownActive) {
-      clearInterval(countdownTimer);
-      isCountdownActive = false;
+    } catch (_err) {
+      if (myVersion === stateVersion) {
+        showConnectionBanner(errorMessage, true);
+      }
+    } finally {
+      if (myVersion === stateVersion) {
+        schedulePoll(CONFIG.POLL_INTERVAL_MS);
+      }
     }
-    try {
-      const d = await fetchEndpoint('/api/door?action=open');
-      renderDashboard(d);
-    } catch (e) {}
-  });
-
-  $('btnDoorClose').addEventListener('click', async () => {
-    if (isCountdownActive) {
-      clearInterval(countdownTimer);
-      isCountdownActive = false;
-    }
-    try {
-      const d = await fetchEndpoint('/api/door?action=close');
-      renderDashboard(d);
-    } catch (e) {}
-  });
-
-  // Flame Logic Inversion
-  async function toggleFlameLogic() {
-    try {
-      const d = await fetchEndpoint('/api/flame?toggle_logic=1');
-      renderDashboard(d);
-    } catch (e) {}
   }
 
-  const btnFlameToggle = $('btnFlameToggleLogic');
-  if (btnFlameToggle) btnFlameToggle.addEventListener('click', toggleFlameLogic);
-  const btnSettingFlame = $('btnSettingFlameToggle');
-  if (btnSettingFlame) btnSettingFlame.addEventListener('click', toggleFlameLogic);
+  // Door Controls (Zero-Delay Optimistic UI)
+  $('btnDoorAuto').addEventListener('click', () => {
+    if (lastData && lastData.flame) return;
+    sendCommand(
+      '/api/door?action=auto',
+      () => applyDoorVisual('AUTO_CYCLE', false),
+      'Gagal membuka pintu otomatis. Periksa koneksi ESP32.'
+    );
+  });
 
-  // Threshold Configuration
-  const thresholdInput = $('settingThreshold');
-  if (thresholdInput) {
-    thresholdInput.addEventListener('change', e => {
-      const val = parseInt(e.target.value, 10);
-      if (!isNaN(val) && val >= 5 && val <= 50) {
-        CONFIG.ULTRASONIC_TRIGGER_CM = val;
-      }
+  $('btnDoorOpen').addEventListener('click', () => {
+    if (lastData && lastData.flame) return;
+    sendCommand(
+      '/api/door?action=open',
+      () => applyDoorVisual('TERBUKA', false),
+      'Gagal membuka pintu. Periksa koneksi ESP32.'
+    );
+  });
+
+  $('btnDoorClose').addEventListener('click', () => {
+    if (lastData && lastData.flame) return;
+    sendCommand(
+      '/api/door?action=close',
+      () => applyDoorVisual('TERTUTUP', false),
+      'Gagal menutup pintu. Periksa koneksi ESP32.'
+    );
+  });
+
+  // Flame Logic Toggle (Optimistic UI)
+  $('btnFlameToggleLogic').addEventListener('click', () => {
+    sendCommand(
+      '/api/flame?toggle_logic=1',
+      () => {
+        const btn = $('btnFlameToggleLogic');
+        const nextHigh = btn.textContent.trim() !== 'Active-HIGH';
+        btn.textContent = nextHigh ? 'Active-HIGH' : 'Active-LOW';
+      },
+      'Gagal mengubah logika sensor api.'
+    );
+  });
+
+  // Connection Retry
+  const btnRetry = $('btnRetryConn');
+  if (btnRetry) {
+    btnRetry.addEventListener('click', () => {
+      abortActivePoll();
+      showConnectionBanner('Menghubungkan ulang...', false);
+      pollStatus();
     });
   }
 
-  // Tab Navigation Handling
-  const tabs = document.querySelectorAll('.nav-tab');
-  const panels = document.querySelectorAll('.view-panel');
+  // Tab Navigation (Click + Arrow Keys per WCAG APG)
+  const tabs = Array.from(document.querySelectorAll('.nav-tab'));
+  const panels = Array.from(document.querySelectorAll('.view-panel'));
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => {
-        t.classList.remove('active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      panels.forEach(p => p.classList.remove('active'));
+  function activateTab(tab, moveFocus) {
+    tabs.forEach(t => {
+      const selected = t === tab;
+      t.classList.toggle('active', selected);
+      t.setAttribute('aria-selected', selected ? 'true' : 'false');
+      t.tabIndex = selected ? 0 : -1;
+    });
+    panels.forEach(p => {
+      p.hidden = p.id !== tab.getAttribute('data-target');
+    });
+    if (moveFocus) tab.focus();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
 
-      tab.classList.add('active');
-      tab.setAttribute('aria-selected', 'true');
-      const targetId = tab.getAttribute('data-target');
-      const targetPanel = $(targetId);
-      if (targetPanel) {
-        targetPanel.classList.add('active');
+  tabs.forEach((tab, index) => {
+    tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+    tab.addEventListener('click', () => activateTab(tab, false));
+    tab.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const nextIndex = (index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        activateTab(tabs[nextIndex], true);
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
 
-  // Audio Playback Handling
+  // Audio Alarm
   const audio = $('audioAlarm');
 
   function unlockAudio() {
@@ -403,16 +378,6 @@
     }
   }
 
-  const btnAlarmTest = $('btnAlarmTest');
-  if (btnAlarmTest) {
-    btnAlarmTest.addEventListener('click', () => {
-      if (!audio) return;
-      playAlarmAudio(true);
-      setTimeout(() => playAlarmAudio(false), 3000);
-    });
-  }
-
-  // Initialize Polling
+  // Start Polling
   pollStatus();
-
 })();
