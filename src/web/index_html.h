@@ -288,7 +288,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
               <div class="flow-node-content">
                 <span class="flow-node-title">Servo Buka Pintu</span>
-                <span class="flow-node-token mono-token">5s</span>
+                <span class="flow-node-token mono-token">7s</span>
               </div>
             </div>
           </div>
@@ -447,7 +447,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div class="spec-chips-footer">
           <span class="spec-chip">PWM <span class="mono-token">50 Hz</span></span>
           <span class="spec-chip">Sudut <span class="mono-token">0&deg; - 180&deg;</span></span>
-          <span class="spec-chip">Siklus <span class="mono-token">5s</span></span>
+          <span class="spec-chip">Siklus <span class="mono-token">7s</span></span>
         </div>
       </div>
 

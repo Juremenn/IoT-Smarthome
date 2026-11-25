@@ -69,12 +69,17 @@ void loop() {
   networkMaintain(now);
   webHandle();
   // Tunda pembacaan DHT11 (~25ms blocking) saat servo sedang bergerak agar gerak pintu tetap halus
-  if (doorPhase() == DoorPhase::Closed || doorPhase() == DoorPhase::Open) {
+  bool doorIdle = (doorPhase() == DoorPhase::Closed || doorPhase() == DoorPhase::Open);
+  if (doorIdle) {
     dhtUpdate(now);
   }
   automationUpdate(now);
   doorUpdate(now);
-  oledUpdate(now);
+  // Tunda refresh OLED normal (~25ms I2C) saat servo bergerak agar tick 20ms tidak patah-patah.
+  // Saat darurat api, OLED tetap langsung diperbarui.
+  if (doorIdle || flameDetected()) {
+    oledUpdate(now);
+  }
 
   if (now - lastSerialLog >= 3000) {
     lastSerialLog = now;

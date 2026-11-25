@@ -22,11 +22,12 @@ constexpr int SERVO_OPEN = 0;
 constexpr int SERVO_MIN_US = 500;
 constexpr int SERVO_MAX_US = 2400;
 
-// Gerak halus, 0 -> 180 derajat. Durasi yang sama dipakai animasi pintu di src/web/style_css.h.
-constexpr unsigned long DOOR_OPEN_MS = 5000;   // buka penuh 180 derajat
-constexpr unsigned long DOOR_CLOSE_MS = 7000;  // tutup lebih pelan + mendarat lembut (DOOR_CLOSE_MS juga di app_js.h)
-constexpr unsigned long DOOR_HOLD_MS = 2000;   // "Buka Pintu (2 Detik)"
-constexpr unsigned long SERVO_TICK_MS = 20;    // servo membaca pulsa tiap 20 ms
+// Gerak halus, 0 -> 180 derajat.
+constexpr unsigned long DOOR_OPEN_MS = 7000;       // buka penuh sehalus menutup (soft-start & soft-end)
+constexpr unsigned long DOOR_CLOSE_MS = 7000;      // tutup pelan + mendarat lembut
+constexpr unsigned long DOOR_EVAC_OPEN_MS = 1800;  // buka cepat khusus darurat api (tetap halus)
+constexpr unsigned long DOOR_HOLD_MS = 2000;       // "Buka Pintu (2 Detik)"
+constexpr unsigned long SERVO_TICK_MS = 20;        // servo membaca pulsa tiap 20 ms (50 Hz)
 
 // Sensor
 constexpr int MAX_DISTANCE_CM = 10;

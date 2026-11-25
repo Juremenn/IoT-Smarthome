@@ -31,13 +31,14 @@ int lastUs = -1;
 bool autoCycle = false;
 bool manualOpen = false;
 bool evacuation = false;
+bool fastMove = false;
 
-// Mulai pelan, cepat di tengah, melambat sampai berhenti.
+// Mulai pelan, cepat di tengah, melambat sampai berhenti (dipakai saat evakuasi cepat).
 float easeInOutSine(float t) { return -(cosf(PI * t) - 1.0f) / 2.0f; }
 
-// Untuk menutup: waktu dilengkungkan supaya sebagian besar jarak ditempuh di awal,
-// lalu bagian akhir mendekati kusen sangat pelan (soft close, tidak kejedot).
-float easeSoftClose(float t) { return easeInOutSine(1.0f - powf(1.0f - t, 1.8f)); }
+// Gerak super lembut: awal halus tanpa hentakan, lalu melambat sangat pelan sebelum berhenti di ujung.
+// Dipakai baik untuk membuka maupun menutup normal agar keduanya sama-sama halus.
+float easeSoftEdge(float t) { return easeInOutSine(1.0f - powf(1.0f - t, 1.8f)); }
 
 int servoAngleToUs(float servoAngle) {
   return cfg::SERVO_MIN_US +
@@ -60,7 +61,7 @@ void onFullyOpen(unsigned long now) {
   closeAt = (autoCycle && !evacuation) ? now + cfg::DOOR_HOLD_MS : 0;
 }
 
-void startMove(float target) {
+void startMove(float target, bool urgent = false) {
   float distance = fabsf(target - leafAngle);
   if (distance < 0.5f) {
     leafAngle = target;
@@ -74,7 +75,9 @@ void startMove(float target) {
     return;
   }
   bool opening = target > leafAngle;
-  unsigned long full = opening ? cfg::DOOR_OPEN_MS : cfg::DOOR_CLOSE_MS;
+  unsigned long full = opening
+                           ? (urgent ? cfg::DOOR_EVAC_OPEN_MS : cfg::DOOR_OPEN_MS)
+                           : cfg::DOOR_CLOSE_MS;
   // Durasi sebanding sisa jarak, jadi berbalik di tengah jalan tetap pelan.
   moveDuration = max(200UL, (unsigned long)(full * distance / OPEN));
   moveFrom = leafAngle;
@@ -83,8 +86,10 @@ void startMove(float target) {
   lastTick = 0;
   maxGap = 0;
   closeAt = 0;
+  fastMove = urgent;
   phase = opening ? DoorPhase::Opening : DoorPhase::Closing;
-  Serial.printf(">>> [PINTU] %s (%lu ms)\n", opening ? "Membuka" : "Menutup", moveDuration);
+  Serial.printf(">>> [PINTU] %s (%lu ms%s)\n", opening ? "Membuka" : "Menutup", moveDuration,
+                urgent ? ", EVAKUASI" : "");
 }
 
 bool isOpenOrOpening() { return phase == DoorPhase::Open || phase == DoorPhase::Opening; }
@@ -119,7 +124,7 @@ void doorUpdate(unsigned long now) {
 
     float t = (float)(now - moveStart) / (float)moveDuration;
     if (t > 1.0f) t = 1.0f;
-    float e = (moveTo < moveFrom) ? easeSoftClose(t) : easeInOutSine(t);
+    float e = fastMove ? easeInOutSine(t) : easeSoftEdge(t);
     leafAngle = moveFrom + (moveTo - moveFrom) * e;
     writeServo(leafAngle);
 
@@ -181,7 +186,8 @@ void doorSetEvacuation(bool active) {
     manualOpen = false;
     autoCycle = true;
     closeAt = 0;
-    if (!isOpenOrOpening()) startMove(OPEN);
+    // Jika belum terbuka penuh (termasuk saat sedang membuka pelan), segera percepat ke profil evakuasi
+    if (phase != DoorPhase::Open) startMove(OPEN, true);
   } else if (phase == DoorPhase::Open && !manualOpen) {
     closeAt = millis() + cfg::DOOR_HOLD_MS;
   }
