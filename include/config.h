@@ -6,7 +6,8 @@ namespace cfg {
 constexpr const char *AP_SSID = "RumahJoglo-SmartHome";
 
 // Pin (100% sesuai Flowchart_iot_final)
-constexpr int PIN_SERVO = 13;        // Servo pintu D13
+constexpr int PIN_SERVO = 13;        // Servo pintu utama D13
+constexpr int PIN_SERVO_ALT = 12;    // Mirror PWM D12 (cadangan jika kabel servo tercolok di D12)
 constexpr int PIN_FLAME = 34;        // Sensor api 5-way, DO
 constexpr int PIN_TRIG = 25;         // Ultrasonik HC-SR04 Trig (D25)
 constexpr int PIN_ECHO = 26;         // Ultrasonik HC-SR04 Echo (D26)
