@@ -14,7 +14,6 @@ constexpr float OPEN = (float)(cfg::SERVO_OPEN > cfg::SERVO_CLOSE ? cfg::SERVO_O
 constexpr float HALF = OPEN / 2.0f;
 
 Servo servo1; // Pin D13
-Servo servo2; // Pin D12 (alternatif)
 
 DoorPhase phase = DoorPhase::Closed;
 float leafAngle = 0.0f;
@@ -49,7 +48,6 @@ void writeServo(float leaf) {
   int us = servoAngleToUs(a);
   if (us != lastUs) {
     if (servo1.attached()) servo1.writeMicroseconds(us);
-    if (servo2.attached()) servo2.writeMicroseconds(us);
     lastUs = us;
   }
 }
@@ -100,12 +98,8 @@ void doorBegin() {
   servo1.setPeriodHertz(50);
   int ch1 = servo1.attach(cfg::PIN_SERVO, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
 
-  servo2.setPeriodHertz(50);
-  int ch2 = servo2.attach(cfg::PIN_SERVO_ALT, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
-
-  Serial.printf("[SERVO] Inisialisasi: D%d (Ch %d, att=%s) | D%d (Ch %d, att=%s)\n",
-                cfg::PIN_SERVO, ch1, servo1.attached() ? "OK" : "GAGAL",
-                cfg::PIN_SERVO_ALT, ch2, servo2.attached() ? "OK" : "GAGAL");
+  Serial.printf("[SERVO] Inisialisasi: D%d (Ch %d, att=%s)\n",
+                cfg::PIN_SERVO, ch1, servo1.attached() ? "OK" : "GAGAL");
 
   writeServo(0.0f);
 }

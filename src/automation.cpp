@@ -14,41 +14,30 @@ bool wasTriggered = false;  // untuk log satu kali per pemicuan
 int triggerMode() { return mode; }
 
 void setTriggerMode(int m) {
-  if (m < MODE_MANUAL || m > MODE_ULTRASONIC || m == mode) return;
+  if ((m != MODE_MANUAL && m != MODE_ULTRASONIC) || m == mode) return;
   mode = m;
   wasTriggered = false;
-  if (mode == MODE_TOUCH) {
-    touchOnModeEnter();
-  }
   Serial.printf("[PINTU] Mode pemicu buka diubah ke: %d\n", mode);
 }
 
 void automationUpdate(unsigned long now) {
   flameUpdate(now);
-  touchUpdate(now, mode == MODE_TOUCH);
   ultrasonicUpdate(now, mode == MODE_ULTRASONIC);
 
-  // Evakuasi api (Prioritas Darurat Global): pintu dibuka penuh selama api terdeteksi.
+  // Evakuasi api (Prioritas Darurat Global): pintu dibuka penuh dan ditahan selama api terdeteksi.
   doorSetEvacuation(flameDetected());
 
   bool triggered = false;
-  if (mode == MODE_TOUCH) {
-    triggered = touchIsTouched();
-  } else if (mode == MODE_ULTRASONIC) {
+  if (mode == MODE_ULTRASONIC) {
     int d = ultrasonicDistance();
     triggered = d > 0 && d <= cfg::MAX_DISTANCE_CM;
   }
 
-  // Selama pemicu aktif, pintu tetap terbuka (waktu tahan diperpanjang).
+  // Selama objek valid <= 10 cm, buka pintu otomatis (Servo D13).
   // "Buka Terus" dari web tidak diganggu oleh sensor.
   if (triggered && !doorIsManualOpen()) {
     if (!wasTriggered) {
-      if (mode == MODE_TOUCH) {
-        Serial.printf(">>> [TOUCH D4] Sentuhan terdeteksi (%d vs Base %d)\n", touchRawValue(),
-                      touchBaselineValue());
-      } else {
-        Serial.printf(">>> [ULTRASONIK] Objek terdeteksi (%d cm)\n", ultrasonicDistance());
-      }
+      Serial.printf(">>> [ULTRASONIK] Objek terdeteksi (%d cm)\n", ultrasonicDistance());
     }
     doorStartCycle();
   }

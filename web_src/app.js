@@ -186,6 +186,10 @@
     if (flowUsThreshold) flowUsThreshold.textContent = `\u2264 ${threshold} cm`;
 
     triggerMode.textContent = 'Ultrasonik';
+    const triggerPinInfo = $('triggerPinInfo');
+    if (triggerPinInfo && typeof d.trigPin === 'number' && typeof d.echoPin === 'number') {
+      triggerPinInfo.textContent = `D${d.trigPin} (Trig) \u00B7 D${d.echoPin} (Echo)`;
+    }
     if (isTriggered) {
       triggerBadge.classList.add('ripple-active');
       triggerSub.textContent = 'Objek Terdeteksi';
@@ -260,7 +264,7 @@
       if (conduit3B) conduit3B.classList.add('conduit-triggered');
       if (flowNodeDhtOut) flowNodeDhtOut.classList.add('node-triggered');
     } else {
-      tempNum.textContent = '--';
+      tempNum.textContent = '--.-';
       tempFill.style.width = '0%';
       humText.textContent = d.dhtStatus || 'Menunggu sensor...';
       if (conduit3A) conduit3A.classList.remove('conduit-triggered');
@@ -339,18 +343,36 @@
   const btnSettingFlame = $('btnSettingFlameToggle');
   if (btnSettingFlame) btnSettingFlame.addEventListener('click', toggleFlameLogic);
 
-  // Ultrasonic Pin Swap
-  const btnSettingUs = $('btnSettingUsSwap');
-  if (btnSettingUs) {
-    btnSettingUs.addEventListener('click', async () => {
+  // Ultrasonic Pin Swap & Auto Scan
+  const btnUsSwap = $('btnUsSwap');
+  if (btnUsSwap) {
+    btnUsSwap.addEventListener('click', async () => {
+      btnUsSwap.disabled = true;
       try {
         const d = await fetchEndpoint('/api/ultrasonic?swap=1');
-        const desc = $('settingUsPinDesc');
-        if (desc && d) {
-          desc.textContent = `Trig D${d.trigPin}, Echo D${d.echoPin}`;
-        }
         renderDashboard(d);
       } catch (e) {}
+      btnUsSwap.disabled = false;
+    });
+  }
+
+  const btnUsScan = $('btnUsScan');
+  if (btnUsScan) {
+    btnUsScan.addEventListener('click', async () => {
+      btnUsScan.disabled = true;
+      const detail = $('triggerDetailText');
+      if (detail) detail.textContent = 'Memindai pin...';
+      try {
+        const res = await fetchEndpoint('/api/ultrasonic?scan=1');
+        if (detail && res && res.result) {
+          detail.textContent = res.result;
+        }
+        const st = await fetchEndpoint('/api/status');
+        renderDashboard(st);
+      } catch (e) {
+        if (detail) detail.textContent = 'Scan gagal';
+      }
+      btnUsScan.disabled = false;
     });
   }
 

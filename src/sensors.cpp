@@ -86,83 +86,6 @@ void flameToggleLogic() {
 }
 
 // ==========================================
-// SENSOR SENTUH
-// ==========================================
-namespace {
-int touchRaw = cfg::TOUCH_BASELINE_FALLBACK;
-int touchBaseline = cfg::TOUCH_BASELINE_FALLBACK;
-unsigned long lastTouchRead = 0;
-unsigned long lastBaselineAdapt = 0;
-
-int median3(int a, int b, int c) {
-  if (a > b) { int t = a; a = b; b = t; }
-  if (b > c) { int t = b; b = c; c = t; }
-  if (a > b) { int t = a; a = b; b = t; }
-  return b;
-}
-
-int touchThreshold() {
-  int pct = (touchBaseline * 4) / 100;  // 4% dari baseline (~55 di baseline 1380)
-  int th = pct < cfg::TOUCH_DELTA_THRESHOLD ? pct : cfg::TOUCH_DELTA_THRESHOLD;
-  return th < 15 ? 15 : th;
-}
-} // namespace
-
-void touchBegin() {
-  long sum = 0;
-  for (int i = 0; i < 5; i++) {
-    sum += touchRead(cfg::PIN_TOUCH);
-    delay(10);
-  }
-  touchBaseline = sum / 5;
-  if (touchBaseline <= 0) touchBaseline = cfg::TOUCH_BASELINE_FALLBACK;
-  touchRaw = touchBaseline;
-  Serial.printf("[TOUCH] Baseline Pin D4: %d (Threshold: %d)\n", touchBaseline, touchThreshold());
-}
-
-void touchOnModeEnter() {
-  // Re-attach Touch0 setelah pin D4 mungkin dipakai mode lain, lalu segarkan baseline bila valid
-  int a = touchRead(cfg::PIN_TOUCH);
-  int b = touchRead(cfg::PIN_TOUCH);
-  int c = touchRead(cfg::PIN_TOUCH);
-  int med = median3(a, b, c);
-  if (med > 20) {
-    touchBaseline = med;
-    touchRaw = med;
-  } else {
-    touchRaw = touchBaseline;
-  }
-  lastTouchRead = millis();
-  lastBaselineAdapt = lastTouchRead;
-}
-
-void touchUpdate(unsigned long now, bool enabled) {
-  if (!enabled || now - lastTouchRead < cfg::TOUCH_READ_MS) return;
-  lastTouchRead = now;
-
-  int a = touchRead(cfg::PIN_TOUCH);
-  int b = touchRead(cfg::PIN_TOUCH);
-  int c = touchRead(cfg::PIN_TOUCH);
-  touchRaw = median3(a, b, c);
-
-  // Adaptasi baseline sangat lambat saat kondisi diam agar tahan perubahan suhu/kelembaban
-  int delta = abs(touchRaw - touchBaseline);
-  int th = touchThreshold();
-  if (touchRaw > 20 && delta < (th / 2) && now - lastBaselineAdapt >= 1000) {
-    lastBaselineAdapt = now;
-    if (touchRaw > touchBaseline) touchBaseline++;
-    else if (touchRaw < touchBaseline) touchBaseline--;
-  }
-}
-
-int touchRawValue() { return touchRaw; }
-int touchBaselineValue() { return touchBaseline; }
-
-bool touchIsTouched() {
-  return touchRaw > 0 && abs(touchRaw - touchBaseline) >= touchThreshold();
-}
-
-// ==========================================
 // ULTRASONIK HC-SR04
 // ==========================================
 namespace {
@@ -174,22 +97,24 @@ long lastEchoUs = 0;
 unsigned long lastPing = 0;
 
 bool ping(int t, int e, int &dist, long &duration) {
-  // Anti-freeze: bebaskan pin Echo jika tertahan HIGH dari ping yang terlewat sebelumnya
+  // Tunggu singkat jika Echo masih HIGH dari pantulan sebelumnya tanpa memaksa OUTPUT LOW
   if (digitalRead(e) == HIGH) {
-    pinMode(e, OUTPUT);
-    digitalWrite(e, LOW);
-    delayMicroseconds(5);
-    pinMode(e, INPUT_PULLDOWN);
+    delayMicroseconds(200);
+    if (digitalRead(e) == HIGH) {
+      dist = 0;
+      duration = 0;
+      return false;
+    }
   }
 
-  // Pulsa trigger 10 µs (pinMode dikonfigurasi saat inisialisasi / pergantian mode)
+  // Pulsa trigger 10 µs
   digitalWrite(t, LOW);
-  delayMicroseconds(4);
+  delayMicroseconds(2);
   digitalWrite(t, HIGH);
   delayMicroseconds(10);
   digitalWrite(t, LOW);
 
-  duration = pulseIn(e, HIGH, 25000);  // 25 ms timeout (~4.2 meter, cakup pantulan ruangan agar echo tidak terpotong)
+  duration = pulseIn(e, HIGH, 25000);  // 25 ms timeout (~4.2 meter)
   if (duration >= 25 && duration <= 25000) {
     dist = (int)(duration * 0.034f / 2.0f);
     if (dist < 1) dist = 1;
@@ -203,7 +128,7 @@ bool ping(int t, int e, int &dist, long &duration) {
 void ultrasonicBegin() {
   pinMode(trigPin, OUTPUT);
   digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT_PULLDOWN);
+  pinMode(echoPin, INPUT);
 }
 
 void ultrasonicUpdate(unsigned long now, bool enabled) {
@@ -215,7 +140,7 @@ void ultrasonicUpdate(unsigned long now, bool enabled) {
   if (!wasEnabled) {
     pinMode(trigPin, OUTPUT);
     digitalWrite(trigPin, LOW);
-    pinMode(echoPin, INPUT_PULLDOWN);
+    pinMode(echoPin, INPUT);
     wasEnabled = true;
   }
 
@@ -243,7 +168,7 @@ void ultrasonicSwapPins() {
   echoPin = tmp;
   pinMode(trigPin, OUTPUT);
   digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT_PULLDOWN);
+  pinMode(echoPin, INPUT);
   Serial.printf("[ULTRASONIK] Pin ditukar: Trig=D%d, Echo=D%d\n", trigPin, echoPin);
 }
 
@@ -256,12 +181,12 @@ String ultrasonicScanPins() {
   for (const auto &p : pairs) {
     int t = p[0];
     int e = p[1];
-    if (t == 13 || t == 12 || t == 21 || t == 22 || t == 34 || t == cfg::PIN_DHT || t == cfg::PIN_FAN) continue;
-    if (e == 13 || e == 12 || e == 21 || e == 22 || e == cfg::PIN_DHT || e == cfg::PIN_FAN) continue;
+    if (t == cfg::PIN_SERVO || t == cfg::PIN_SDA || t == cfg::PIN_SCL || t == cfg::PIN_FLAME || t == cfg::PIN_DHT) continue;
+    if (e == cfg::PIN_SERVO || e == cfg::PIN_SDA || e == cfg::PIN_SCL || e == cfg::PIN_DHT) continue;
 
     pinMode(t, OUTPUT);
     digitalWrite(t, LOW);
-    pinMode(e, INPUT_PULLDOWN);
+    pinMode(e, INPUT);
     delayMicroseconds(20);
 
     for (int retry = 0; retry < 2; retry++) {
@@ -282,7 +207,7 @@ String ultrasonicScanPins() {
   // Kembalikan pinMode aktif agar pin tidak tertinggal dalam kondisi salah
   pinMode(trigPin, OUTPUT);
   digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT_PULLDOWN);
+  pinMode(echoPin, INPUT);
   Serial.println("[ULTRASONIK] Modul ultrasonik belum merespon.");
   return "Belum merespon (menunggu sensor baru)";
 }

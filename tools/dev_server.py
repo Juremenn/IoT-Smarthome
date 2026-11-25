@@ -24,28 +24,17 @@ class SmartHomeState:
         self.lock = threading.Lock()
         self.start_time = time.time()
         
-        # Pintu & Servo
+        # Pintu & Servo (D13)
         self.door = "TERTUTUP"  # TERTUTUP, AUTO_CYCLE, TERBUKA, EVAKUASI
-        self.doorTriggerMode = 3  # 0: Manual, 1: Sentuh, 2: Api, 3: Ultrasonik
+        self.doorTriggerMode = 3  # 0: Manual (Standby / Kontrol Web), 3: Ultrasonik
         self.auto_cycle_timer = None
-        self.touch_timer = None
         
-        # Kipas
-        self.fan = False
-        self.fanPin = 23
-        self.fanActiveLow = True
-        
-        # Sensor Api
+        # Sensor Api (D34)
         self.flame = False
         self.flameRaw = 0
         self.flameActiveHigh = True
         
-        # Sensor Sentuh D4
-        self.touchRaw = 1380
-        self.touchBaseline = 1380
-        self.touchDetected = False
-        
-        # Sensor Ultrasonik
+        # Sensor Ultrasonik (D4/D5)
         self.trigPin = 4
         self.echoPin = 5
         self.distance = 25
@@ -87,37 +76,24 @@ class SmartHomeState:
         elif self.door == "EVAKUASI" and not self.flame:
             self.door = "TERTUTUP"
             
-        # Pemicu ultrasonik
+        # Pemicu ultrasonik (<= 10 cm)
         if self.doorTriggerMode == 3 and (0 < self.distance <= self.maxDistance):
-            if self.door == "TERTUTUP":
-                self.trigger_auto_door()
-                
-        # Pemicu sentuh
-        if self.doorTriggerMode == 1 and self.touchDetected:
             if self.door == "TERTUTUP":
                 self.trigger_auto_door()
 
     def to_dict(self):
         with self.lock:
             self.update_automation()
-            mode = self.doorTriggerMode
-            is_touched = (mode == 1) and self.touchDetected
             uptime_sec = int(time.time() - self.start_time)
             
             return {
                 "flame": bool(self.flame),
                 "flameRaw": int(self.flameRaw),
                 "flameActiveHigh": bool(self.flameActiveHigh),
-                "fan": bool(self.fan),
-                "fanPin": int(self.fanPin),
-                "fanActiveLow": bool(self.fanActiveLow),
                 "door": str(self.door),
                 "doorTriggerMode": int(self.doorTriggerMode),
                 "oled": bool(self.oled),
                 "oledAddress": str(self.oledAddress),
-                "touchRaw": int(self.touchRaw),
-                "touchBaseline": int(self.touchBaseline),
-                "touchDetected": bool(is_touched),
                 "trigPin": int(self.trigPin),
                 "echoPin": int(self.echoPin),
                 "distance": int(self.distance),
@@ -245,18 +221,6 @@ class MockServerHandler(BaseHTTPRequestHandler):
             self.send_json(state.to_dict())
             return
 
-        elif path == "/api/fan":
-            with state.lock:
-                if "toggle" in query:
-                    state.fan = not state.fan
-                elif "state" in query:
-                    val = query["state"][0]
-                    state.fan = val in ("on", "1", "true")
-                elif "toggle_logic" in query:
-                    state.fanActiveLow = not state.fanActiveLow
-            self.send_json(state.to_dict())
-            return
-
         elif path == "/api/flame":
             with state.lock:
                 if "toggle_logic" in query:
@@ -301,11 +265,10 @@ class MockServerHandler(BaseHTTPRequestHandler):
                 if "flame" in data:
                     state.flame = bool(data["flame"])
                     state.flameRaw = 1 if state.flame else 0
-                if "touchDetected" in data:
-                    state.touchDetected = bool(data["touchDetected"])
-                    state.touchRaw = 800 if state.touchDetected else 1380
                 if "doorTriggerMode" in data:
-                    state.doorTriggerMode = int(data["doorTriggerMode"])
+                    mode_val = int(data["doorTriggerMode"])
+                    if mode_val in (0, 3):
+                        state.doorTriggerMode = mode_val
 
             self.send_json(state.to_dict())
             return

@@ -130,6 +130,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div class="status-sub" id="triggerDetailText" style="margin-top: 8px;">
           Pemicu &le; 10 cm
         </div>
+
+        <div class="btn-group-2" style="margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="btnUsSwap">Tukar Pin</button>
+          <button type="button" class="btn-secondary" id="btnUsScan">Scan Pin</button>
+        </div>
       </section>
 
       <!-- Row 2, Card 4: Jarak -->
@@ -442,7 +447,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
           <div class="gpio-badges">
             <span class="gpio-badge">GPIO 13</span>
-            <span class="gpio-badge">GPIO 12</span>
           </div>
         </div>
         <div class="spec-chips-footer">

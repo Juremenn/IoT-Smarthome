@@ -1,9 +1,11 @@
+import sys
 import urllib.request
 import urllib.parse
 import json
 import time
 
-BASE_URL = "http://127.0.0.1:8080"
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 8080
+BASE_URL = f"http://127.0.0.1:{PORT}"
 
 def get(path):
     req = urllib.request.Request(BASE_URL + path)
@@ -44,12 +46,14 @@ def main():
     assert st == 200 and "javascript" in ct
     print(" [PASS] GET /app.js")
 
-    # 3. Test /api/status
+    # 3. Test /api/status (strict flowchart fields, no fan/touch, maxDistance == 10)
     st, ct, body = get("/api/status")
     assert st == 200
     data = json.loads(body.decode("utf-8"))
     assert "flame" in data and "door" in data and "temp" in data
-    print(f" [PASS] GET /api/status (door={data['door']}, temp={data['temp']}C)")
+    assert data["maxDistance"] == 10, f"Expected maxDistance 10, got {data['maxDistance']}"
+    assert "fan" not in data and "touchDetected" not in data, "Removed non-flowchart fields must not be present"
+    print(f" [PASS] GET /api/status (door={data['door']}, temp={data['temp']}C, maxDistance={data['maxDistance']}cm)")
 
     # 4. Test /api/door action=auto
     st, ct, body = get("/api/door?action=auto")
@@ -57,13 +61,14 @@ def main():
     assert data["door"] in ("AUTO_CYCLE", "TERBUKA")
     print(f" [PASS] GET /api/door?action=auto -> door: {data['door']}")
 
-    # 5. Test /api/fan toggle
-    st, ct, body = get("/api/status")
-    prev_fan = json.loads(body.decode("utf-8"))["fan"]
-    st, ct, body = get("/api/fan?toggle=1")
+    # 5. Test /api/ultrasonic swap & scan
+    st, ct, body = get("/api/ultrasonic?swap=1")
     data = json.loads(body.decode("utf-8"))
-    assert data["fan"] != prev_fan
-    print(f" [PASS] GET /api/fan?toggle=1 -> fan changed from {prev_fan} to {data['fan']}")
+    assert data["trigPin"] == 5 and data["echoPin"] == 4
+    st, ct, body = get("/api/ultrasonic?swap=1")
+    data = json.loads(body.decode("utf-8"))
+    assert data["trigPin"] == 4 and data["echoPin"] == 5
+    print(" [PASS] GET /api/ultrasonic?swap=1 -> pins swapped and restored")
 
     # 6. Test /api/simulator/update with flame evacuation priority
     st, ct, body = post("/api/simulator/update", {"temp": 35.5, "flame": True})

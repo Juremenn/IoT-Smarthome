@@ -9,14 +9,6 @@ int flameRaw();
 bool flameActiveHigh();
 void flameToggleLogic();
 
-// ---- Sensor sentuh (Touch0, D4) ----
-void touchBegin();
-void touchOnModeEnter();
-void touchUpdate(unsigned long now, bool enabled);
-int touchRawValue();
-int touchBaselineValue();
-bool touchIsTouched();
-
 // ---- Ultrasonik HC-SR04 ----
 void ultrasonicBegin();
 void ultrasonicUpdate(unsigned long now, bool enabled);

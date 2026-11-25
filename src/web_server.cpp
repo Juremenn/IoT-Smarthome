@@ -5,7 +5,6 @@
 #include "automation.h"
 #include "config.h"
 #include "door.h"
-#include "fan.h"
 #include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
@@ -20,27 +19,20 @@ WebServer server(80);
 
 const char *boolStr(bool v) { return v ? "true" : "false"; }
 
-// Format JSON efisien & ringan untuk polling cepat (300ms)
+// Format JSON efisien & ringan untuk polling cepat
 void handleStatus() {
   int mode = triggerMode();
   int distance = ultrasonicDistance();
-  bool isTouched = (mode == MODE_TOUCH) && touchIsTouched();
   bool oled = oledIsActive();
 
   String json;
-  json.reserve(384);
+  json.reserve(320);
   json += "{\"flame\":";
   json += boolStr(flameDetected());
   json += ",\"flameRaw\":";
   json += flameRaw();
   json += ",\"flameActiveHigh\":";
   json += boolStr(flameActiveHigh());
-  json += ",\"fan\":";
-  json += boolStr(fanIsOn());
-  json += ",\"fanPin\":";
-  json += cfg::PIN_FAN;
-  json += ",\"fanActiveLow\":";
-  json += boolStr(fanActiveLow());
   json += ",\"door\":\"";
   json += doorStatusText();
   json += "\",\"doorTriggerMode\":";
@@ -49,13 +41,7 @@ void handleStatus() {
   json += boolStr(oled);
   json += ",\"oledAddress\":\"";
   json += oled ? ("0x" + String(oledAddress(), HEX)) : "none";
-  json += "\",\"touchRaw\":";
-  json += touchRawValue();
-  json += ",\"touchBaseline\":";
-  json += touchBaselineValue();
-  json += ",\"touchDetected\":";
-  json += boolStr(isTouched);
-  json += ",\"trigPin\":";
+  json += "\",\"trigPin\":";
   json += ultrasonicTrigPin();
   json += ",\"echoPin\":";
   json += ultrasonicEchoPin();
@@ -92,18 +78,6 @@ void sendAsset(const char *type, const char *body) {
 
 void handleFlame() {
   if (server.hasArg("toggle_logic")) flameToggleLogic();
-  handleStatus();
-}
-
-void handleFan() {
-  if (server.hasArg("toggle")) {
-    fanToggle();
-  } else if (server.hasArg("state")) {
-    String st = server.arg("state");
-    fanSetState(st == "on" || st == "1");
-  } else if (server.hasArg("toggle_logic")) {
-    fanToggleLogic();
-  }
   handleStatus();
 }
 
@@ -153,7 +127,6 @@ void webBegin() {
   });
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);
-  server.on("/api/fan", HTTP_GET, handleFan);
   server.on("/api/door", HTTP_GET, handleDoor);
   server.on("/api/ultrasonic", HTTP_GET, handleUltrasonic);
   server.begin();

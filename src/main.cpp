@@ -1,9 +1,9 @@
 // Smart Home Miniatur Rumah Joglo (ESP32)
-// Setiap bagian ada di modulnya sendiri:
+// Setiap bagian ada di modulnya sendiri (sesuai Flowchart_iot_final):
 //   door        servo pintu D13, gerak halus non-blocking
-//   sensors     sensor api D34, sentuh D4, ultrasonik HC-SR04
-//   automation  mode pemicu otomatis pintu
-//   oled        layar SSD1306 opsional
+//   sensors     sensor api D34, DHT11 D27, ultrasonik HC-SR04 D4/D5
+//   automation  evakuasi api global + buka pintu otomatis ultrasonik (<= 10 cm)
+//   oled        layar SSD1306 I2C D21/D22
 //   app_network WiFi Access Point mandiri
 //   web_server  route HTTP dan file dashboard (src/web/)
 
@@ -12,7 +12,6 @@
 #include "automation.h"
 #include "config.h"
 #include "door.h"
-#include "fan.h"
 #include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
@@ -41,9 +40,8 @@ void setup() {
     Serial.printf("Kode: %d\n", (int)reason);
   }
 
-  // Servo dan relay dipasang paling awal supaya pintu diam tertutup dan kipas tetap mati saat boot.
+  // Inisialisasi ESP32 & Perangkat Keras (Servo D13, Api D34, DHT11 D27, Ultrasonik D4/D5, OLED)
   doorBegin();
-  fanBegin();
   ultrasonicBegin();
   flameBegin();
   dhtBegin();
@@ -54,16 +52,11 @@ void setup() {
   webBegin();
   oledShowSplash();
 
-  if (triggerMode() == MODE_TOUCH) {
-    touchBegin();
-  }
-
   Serial.println("\n=============================================");
   Serial.println("  SMART HOME RUMAH JOGLO - IOT SYSTEM");
   Serial.printf("  Servo Pintu: GPIO D%d\n", cfg::PIN_SERVO);
   Serial.printf("  Sensor Api 5-Way: GPIO D%d\n", cfg::PIN_FLAME);
   Serial.printf("  Sensor Suhu (DHT11): GPIO D%d\n", cfg::PIN_DHT);
-  Serial.printf("  Relay Kipas: GPIO D%d\n", cfg::PIN_FAN);
   Serial.printf("  Sensor Ultrasonik: Trig=D%d, Echo=D%d\n", ultrasonicTrigPin(),
                 ultrasonicEchoPin());
   Serial.printf("  Dashboard Web: http://%s\n", networkIp().c_str());
@@ -86,13 +79,13 @@ void loop() {
   if (now - lastSerialLog >= 3000) {
     lastSerialLog = now;
     if (dhtIsValid()) {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Jarak: %d cm | Kipas: %s | Flame: %s | OLED: %s\n",
+      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Jarak: %d cm | Flame: %s | OLED: %s\n",
                     doorStatusText(), dhtTemperature(), dhtHumidity(), triggerMode(), ultrasonicDistance(),
-                    fanIsOn() ? "ON" : "OFF", flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
+                    flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     } else {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Jarak: %d cm | Kipas: %s | Flame: %s | OLED: %s\n",
+      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Jarak: %d cm | Flame: %s | OLED: %s\n",
                     doorStatusText(), dhtStatusMessage(), triggerMode(), ultrasonicDistance(),
-                    fanIsOn() ? "ON" : "OFF", flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
+                    flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     }
   }
 
