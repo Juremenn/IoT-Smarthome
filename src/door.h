@@ -16,6 +16,7 @@ void doorSetEvacuation(bool active);
 DoorPhase doorPhase();
 float doorOpenFraction();  // 0.0 = tertutup penuh, 1.0 = terbuka penuh
 bool doorIsManualOpen();
+bool doorIsManualClosing(unsigned long now);
 bool doorIsAutoCycle();
 bool doorIsEvacuating();
 unsigned long doorHoldRemainingMs(unsigned long now);

@@ -61,14 +61,9 @@ def main():
     assert data["door"] in ("AUTO_CYCLE", "TERBUKA")
     print(f" [PASS] GET /api/door?action=auto -> door: {data['door']}")
 
-    # 5. Test /api/ultrasonic swap & scan
-    st, ct, body = get("/api/ultrasonic?swap=1")
-    data = json.loads(body.decode("utf-8"))
-    assert data["trigPin"] == 5 and data["echoPin"] == 4
-    st, ct, body = get("/api/ultrasonic?swap=1")
-    data = json.loads(body.decode("utf-8"))
-    assert data["trigPin"] == 4 and data["echoPin"] == 5
-    print(" [PASS] GET /api/ultrasonic?swap=1 -> pins swapped and restored")
+    # 5. Test fixed ultrasonic pins (Trig D25, Echo D26)
+    assert data["trigPin"] == 25 and data["echoPin"] == 26, f"Expected D25/D26, got D{data['trigPin']}/D{data['echoPin']}"
+    print(f" [PASS] Ultrasonic fixed pins verified (Trig=D{data['trigPin']}, Echo=D{data['echoPin']})")
 
     # 6. Test /api/simulator/update with flame evacuation priority
     st, ct, body = post("/api/simulator/update", {"temp": 35.5, "flame": True})

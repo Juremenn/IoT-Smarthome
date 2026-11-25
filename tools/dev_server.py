@@ -34,9 +34,9 @@ class SmartHomeState:
         self.flameRaw = 0
         self.flameActiveHigh = True
         
-        # Sensor Ultrasonik (D4/D5)
-        self.trigPin = 4
-        self.echoPin = 5
+        # Sensor Ultrasonik (D25/D26)
+        self.trigPin = 25
+        self.echoPin = 26
         self.distance = 25
         self.maxDistance = 10
         self.rawEcho = 1450
@@ -225,21 +225,6 @@ class MockServerHandler(BaseHTTPRequestHandler):
             with state.lock:
                 if "toggle_logic" in query:
                     state.flameActiveHigh = not state.flameActiveHigh
-            self.send_json(state.to_dict())
-            return
-
-        elif path == "/api/ultrasonic":
-            with state.lock:
-                if "swap" in query:
-                    state.trigPin, state.echoPin = state.echoPin, state.trigPin
-                elif "scan" in query:
-                    res = {
-                        "result": f"Pin HC-SR04 terdeteksi di Trig D{state.trigPin}, Echo D{state.echoPin}",
-                        "trigPin": state.trigPin,
-                        "echoPin": state.echoPin
-                    }
-                    self.send_json(res)
-                    return
             self.send_json(state.to_dict())
             return
 

@@ -34,8 +34,8 @@ void automationUpdate(unsigned long now) {
   }
 
   // Selama objek valid <= 10 cm, buka pintu otomatis (Servo D13).
-  // "Buka Terus" dari web tidak diganggu oleh sensor.
-  if (triggered && !doorIsManualOpen()) {
+  // "Buka Terus" dan jeda "Tutup" manual dari web tidak diganggu oleh sensor.
+  if (triggered && !doorIsManualOpen() && !doorIsManualClosing(now)) {
     if (!wasTriggered) {
       Serial.printf(">>> [ULTRASONIK] Objek terdeteksi (%d cm)\n", ultrasonicDistance());
     }

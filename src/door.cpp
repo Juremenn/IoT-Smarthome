@@ -24,6 +24,7 @@ unsigned long moveDuration = 0;
 unsigned long lastTick = 0;
 unsigned long maxGap = 0;   // jeda terlama antar-update servo selama satu gerakan (diagnostik)
 unsigned long closeAt = 0;  // 0 = tidak ada jadwal menutup
+unsigned long manualCloseUntil = 0;  // jeda singkat setelah Tutup manual agar tidak langsung ditimpa sensor
 int lastUs = -1;
 
 bool autoCycle = false;
@@ -162,6 +163,7 @@ void doorCloseManual() {
   manualOpen = false;
   autoCycle = false;
   closeAt = 0;
+  manualCloseUntil = millis() + 3000;
   if (phase != DoorPhase::Closed && phase != DoorPhase::Closing) startMove(0.0f);
   Serial.println("[PINTU] Ditutup MANUAL via Web");
 }
@@ -182,6 +184,9 @@ void doorSetEvacuation(bool active) {
 DoorPhase doorPhase() { return phase; }
 float doorOpenFraction() { return constrain(leafAngle / OPEN, 0.0f, 1.0f); }
 bool doorIsManualOpen() { return manualOpen; }
+bool doorIsManualClosing(unsigned long now) {
+  return manualCloseUntil != 0 && (long)(manualCloseUntil - now) > 0;
+}
 bool doorIsAutoCycle() { return autoCycle; }
 bool doorIsEvacuating() { return evacuation; }
 

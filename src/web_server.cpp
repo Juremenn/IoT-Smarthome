@@ -96,20 +96,6 @@ void handleDoor() {
   }
   handleStatus();
 }
-
-void handleUltrasonic() {
-  if (server.hasArg("swap")) {
-    ultrasonicSwapPins();
-  } else if (server.hasArg("scan")) {
-    String res = ultrasonicScanPins();
-    String json = "{\"result\":\"" + res + "\",\"trigPin\":" + String(ultrasonicTrigPin()) +
-                  ",\"echoPin\":" + String(ultrasonicEchoPin()) + "}";
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", json);
-    return;
-  }
-  handleStatus();
-}
 } // namespace
 
 void webBegin() {
@@ -128,7 +114,6 @@ void webBegin() {
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);
   server.on("/api/door", HTTP_GET, handleDoor);
-  server.on("/api/ultrasonic", HTTP_GET, handleUltrasonic);
   server.begin();
   Serial.println("[WEB] Web Server aktif di port 80.");
 }

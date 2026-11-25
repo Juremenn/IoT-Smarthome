@@ -10,7 +10,7 @@
   const CONFIG = {
     USE_SIMULATOR: true,
     ESP32_BASE_URL: window.location.origin || "http://127.0.0.1:8080",
-    POLL_INTERVAL_MS: 1000,
+    POLL_INTERVAL_MS: 250,
     ULTRASONIC_TRIGGER_CM: 10
   };
 
@@ -342,39 +342,6 @@
   if (btnFlameToggle) btnFlameToggle.addEventListener('click', toggleFlameLogic);
   const btnSettingFlame = $('btnSettingFlameToggle');
   if (btnSettingFlame) btnSettingFlame.addEventListener('click', toggleFlameLogic);
-
-  // Ultrasonic Pin Swap & Auto Scan
-  const btnUsSwap = $('btnUsSwap');
-  if (btnUsSwap) {
-    btnUsSwap.addEventListener('click', async () => {
-      btnUsSwap.disabled = true;
-      try {
-        const d = await fetchEndpoint('/api/ultrasonic?swap=1');
-        renderDashboard(d);
-      } catch (e) {}
-      btnUsSwap.disabled = false;
-    });
-  }
-
-  const btnUsScan = $('btnUsScan');
-  if (btnUsScan) {
-    btnUsScan.addEventListener('click', async () => {
-      btnUsScan.disabled = true;
-      const detail = $('triggerDetailText');
-      if (detail) detail.textContent = 'Memindai pin...';
-      try {
-        const res = await fetchEndpoint('/api/ultrasonic?scan=1');
-        if (detail && res && res.result) {
-          detail.textContent = res.result;
-        }
-        const st = await fetchEndpoint('/api/status');
-        renderDashboard(st);
-      } catch (e) {
-        if (detail) detail.textContent = 'Scan gagal';
-      }
-      btnUsScan.disabled = false;
-    });
-  }
 
   // Threshold Configuration
   const thresholdInput = $('settingThreshold');

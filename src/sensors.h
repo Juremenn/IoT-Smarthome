@@ -9,15 +9,13 @@ int flameRaw();
 bool flameActiveHigh();
 void flameToggleLogic();
 
-// ---- Ultrasonik HC-SR04 ----
+// ---- Ultrasonik HC-SR04 (Trig D25, Echo D26) ----
 void ultrasonicBegin();
 void ultrasonicUpdate(unsigned long now, bool enabled);
 int ultrasonicDistance();  // 0 = tidak ada objek / tidak ada echo
 long ultrasonicLastEcho();
 int ultrasonicTrigPin();
 int ultrasonicEchoPin();
-void ultrasonicSwapPins();
-String ultrasonicScanPins();
 
 // ---- Sensor Suhu & Kelembaban DHT11 (D27) ----
 void dhtBegin();

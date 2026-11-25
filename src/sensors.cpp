@@ -86,36 +86,33 @@ void flameToggleLogic() {
 }
 
 // ==========================================
-// ULTRASONIK HC-SR04
+// ULTRASONIK HC-SR04 (Trig D25, Echo D26)
 // ==========================================
 namespace {
-int trigPin = cfg::PIN_TRIG_DEFAULT;
-int echoPin = cfg::PIN_ECHO_DEFAULT;
 int distanceCm = 0;
 int missedEcho = 0;
 long lastEchoUs = 0;
 unsigned long lastPing = 0;
 
-bool ping(int t, int e, int &dist, long &duration) {
-  // Tunggu singkat jika Echo masih HIGH dari pantulan sebelumnya tanpa memaksa OUTPUT LOW
-  if (digitalRead(e) == HIGH) {
-    delayMicroseconds(200);
-    if (digitalRead(e) == HIGH) {
-      dist = 0;
-      duration = 0;
-      return false;
-    }
+bool ping(int &dist, long &duration) {
+  // Anti-freeze untuk modul HC-SR04: bebaskan Echo jika tertahan HIGH dari timeout sebelumnya
+  if (digitalRead(cfg::PIN_ECHO) == HIGH) {
+    pinMode(cfg::PIN_ECHO, OUTPUT);
+    digitalWrite(cfg::PIN_ECHO, LOW);
+    delayMicroseconds(5);
+    pinMode(cfg::PIN_ECHO, INPUT_PULLDOWN);
   }
 
   // Pulsa trigger 10 µs
-  digitalWrite(t, LOW);
+  digitalWrite(cfg::PIN_TRIG, LOW);
   delayMicroseconds(2);
-  digitalWrite(t, HIGH);
+  digitalWrite(cfg::PIN_TRIG, HIGH);
   delayMicroseconds(10);
-  digitalWrite(t, LOW);
+  digitalWrite(cfg::PIN_TRIG, LOW);
 
-  duration = pulseIn(e, HIGH, 25000);  // 25 ms timeout (~4.2 meter)
-  if (duration >= 25 && duration <= 25000) {
+  duration = pulseIn(cfg::PIN_ECHO, HIGH, 15000);  // 15 ms timeout (~2.5 m) agar respons cepat
+  // Filter glitch listrik < 100 µs (~1.7 cm, di bawah batas fisik HC-SR04 2 cm)
+  if (duration >= 100 && duration <= 15000) {
     dist = (int)(duration * 0.034f / 2.0f);
     if (dist < 1) dist = 1;
     return true;
@@ -126,91 +123,29 @@ bool ping(int t, int e, int &dist, long &duration) {
 } // namespace
 
 void ultrasonicBegin() {
-  pinMode(trigPin, OUTPUT);
-  digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
+  pinMode(cfg::PIN_TRIG, OUTPUT);
+  digitalWrite(cfg::PIN_TRIG, LOW);
+  pinMode(cfg::PIN_ECHO, INPUT_PULLDOWN);
 }
 
 void ultrasonicUpdate(unsigned long now, bool enabled) {
-  static bool wasEnabled = false;
-  if (!enabled) {
-    wasEnabled = false;
-    return;
-  }
-  if (!wasEnabled) {
-    pinMode(trigPin, OUTPUT);
-    digitalWrite(trigPin, LOW);
-    pinMode(echoPin, INPUT);
-    wasEnabled = true;
-  }
-
+  if (!enabled) return;
   if (now - lastPing < cfg::ULTRASONIC_PING_MS) return;
   lastPing = now;
 
   int d = 0;
-  ping(trigPin, echoPin, d, lastEchoUs);
-  if (d > 0 && d <= 400) {
+  if (ping(d, lastEchoUs) && d > 0 && d <= 250) {
     distanceCm = d;
     missedEcho = 0;
-  } else if (++missedEcho >= 3) {
+  } else if (++missedEcho >= 2) {
     distanceCm = 0;
   }
 }
 
 int ultrasonicDistance() { return distanceCm; }
 long ultrasonicLastEcho() { return lastEchoUs; }
-int ultrasonicTrigPin() { return trigPin; }
-int ultrasonicEchoPin() { return echoPin; }
-
-void ultrasonicSwapPins() {
-  int tmp = trigPin;
-  trigPin = echoPin;
-  echoPin = tmp;
-  pinMode(trigPin, OUTPUT);
-  digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
-  Serial.printf("[ULTRASONIK] Pin ditukar: Trig=D%d, Echo=D%d\n", trigPin, echoPin);
-}
-
-String ultrasonicScanPins() {
-  Serial.println("\n[ULTRASONIK] Memindai pin secara otomatis...");
-  static const int pairs[][2] = {{4, 5},   {5, 4},   {5, 18},  {18, 5},  {18, 19}, {19, 18},
-                                 {4, 18},  {18, 4},  {5, 19},  {19, 5},  {23, 19}, {19, 23},
-                                 {16, 17}, {17, 16}, {25, 26}, {26, 25}};
-
-  for (const auto &p : pairs) {
-    int t = p[0];
-    int e = p[1];
-    if (t == cfg::PIN_SERVO || t == cfg::PIN_SDA || t == cfg::PIN_SCL || t == cfg::PIN_FLAME || t == cfg::PIN_DHT) continue;
-    if (e == cfg::PIN_SERVO || e == cfg::PIN_SDA || e == cfg::PIN_SCL || e == cfg::PIN_DHT) continue;
-
-    pinMode(t, OUTPUT);
-    digitalWrite(t, LOW);
-    pinMode(e, INPUT);
-    delayMicroseconds(20);
-
-    for (int retry = 0; retry < 2; retry++) {
-      int dist = 0;
-      long dur = 0;
-      if (ping(t, e, dist, dur)) {
-        trigPin = t;
-        echoPin = e;
-        lastEchoUs = dur;
-        distanceCm = dist;
-        Serial.printf("[ULTRASONIK] Ditemukan! Trig=D%d, Echo=D%d -> Jarak: %d cm\n", t, e, dist);
-        return "Ditemukan: Trig=D" + String(t) + ", Echo=D" + String(e);
-      }
-      delay(15);
-    }
-  }
-
-  // Kembalikan pinMode aktif agar pin tidak tertinggal dalam kondisi salah
-  pinMode(trigPin, OUTPUT);
-  digitalWrite(trigPin, LOW);
-  pinMode(echoPin, INPUT);
-  Serial.println("[ULTRASONIK] Modul ultrasonik belum merespon.");
-  return "Belum merespon (menunggu sensor baru)";
-}
+int ultrasonicTrigPin() { return cfg::PIN_TRIG; }
+int ultrasonicEchoPin() { return cfg::PIN_ECHO; }
 
 // ==========================================
 // SENSOR SUHU & KELEMBABAN (DHT11 / DHT22)

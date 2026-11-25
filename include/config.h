@@ -8,8 +8,8 @@ constexpr const char *AP_SSID = "RumahJoglo-SmartHome";
 // Pin (100% sesuai Flowchart_iot_final)
 constexpr int PIN_SERVO = 13;        // Servo pintu D13
 constexpr int PIN_FLAME = 34;        // Sensor api 5-way, DO
-constexpr int PIN_TRIG_DEFAULT = 4;  // Ultrasonik HC-SR04 Trig (bisa ditukar dari web)
-constexpr int PIN_ECHO_DEFAULT = 5;  // Ultrasonik HC-SR04 Echo
+constexpr int PIN_TRIG = 25;         // Ultrasonik HC-SR04 Trig (D25)
+constexpr int PIN_ECHO = 26;         // Ultrasonik HC-SR04 Echo (D26)
 constexpr int PIN_DHT = 27;          // Sensor DHT11 suhu & kelembaban (D27)
 constexpr int PIN_SDA = 21;          // OLED SSD1306 SDA
 constexpr int PIN_SCL = 22;          // OLED SSD1306 SCL
@@ -36,7 +36,7 @@ constexpr bool FLAME_ACTIVE_HIGH_DEFAULT = true;
 constexpr unsigned long FLAME_CONFIRM_MS = 15;    // Reaksi sangat cepat deteksi nyala api (15 ms)
 constexpr unsigned long FLAME_RELEASE_MS = 1200;  // Tahan status bahaya 1.2 detik agar stabil
 constexpr unsigned long FLAME_READ_MS = 5;        // Pemantauan pin tiap 5 ms (200 Hz)
-constexpr unsigned long ULTRASONIC_PING_MS = 40;  // Sampling jarak cepat (~25x per detik)
+constexpr unsigned long ULTRASONIC_PING_MS = 30;  // Sampling jarak responsif (~33x per detik)
 constexpr unsigned long DHT_READ_MS = 2100;       // > 2000 ms (MIN_INTERVAL library DHT) agar selalu baca fisik
 constexpr int DHT_MAX_CONSECUTIVE_FAILS = 5;      // Pertahankan nilai lama hingga 5x gagal baca berturut-turut
 

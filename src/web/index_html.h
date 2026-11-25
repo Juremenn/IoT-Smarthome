@@ -123,17 +123,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <div class="status-meta">
             <span class="status-main" id="triggerModeText">Ultrasonik</span>
             <span class="status-sub" id="triggerStatusSub">Standby</span>
-            <span class="telemetry-mono" id="triggerPinInfo">D4 (Trig) &middot; D5 (Echo)</span>
+            <span class="telemetry-mono" id="triggerPinInfo">D25 (Trig) &middot; D26 (Echo)</span>
           </div>
         </div>
 
         <div class="status-sub" id="triggerDetailText" style="margin-top: 8px;">
           Pemicu &le; 10 cm
-        </div>
-
-        <div class="btn-group-2" style="margin-top: 8px;">
-          <button type="button" class="btn-secondary" id="btnUsSwap">Tukar Pin</button>
-          <button type="button" class="btn-secondary" id="btnUsScan">Scan Pin</button>
         </div>
       </section>
 
@@ -488,8 +483,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
             <h3 class="pinout-card-title">Sensor Jarak Ultrasonik</h3>
           </div>
           <div class="gpio-badges">
-            <span class="gpio-badge">Trig D4</span>
-            <span class="gpio-badge">Echo D5</span>
+            <span class="gpio-badge">Trig D25</span>
+            <span class="gpio-badge">Echo D26</span>
           </div>
         </div>
         <div class="spec-chips-footer">
