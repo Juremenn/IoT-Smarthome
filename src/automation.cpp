@@ -5,6 +5,7 @@
 #include "config.h"
 #include "door.h"
 #include "sensors.h"
+#include "terminal_ui.h"
 
 namespace {
 int mode = MODE_ULTRASONIC;
@@ -17,7 +18,7 @@ void setTriggerMode(int m) {
   if ((m != MODE_MANUAL && m != MODE_ULTRASONIC) || m == mode) return;
   mode = m;
   wasTriggered = false;
-  Serial.printf("[PINTU] Mode pemicu buka diubah ke: %d\n", mode);
+  terminalLog("Mode pemicu diubah ke %d", mode);
 }
 
 void automationUpdate(unsigned long now) {
@@ -40,7 +41,7 @@ void automationUpdate(unsigned long now) {
   // "Buka Terus" dan jeda "Tutup" manual dari web tidak diganggu oleh sensor.
   if (triggered && !doorIsManualOpen() && !doorIsManualClosing(now)) {
     if (!wasTriggered) {
-      Serial.printf(">>> [ULTRASONIK] Objek terdeteksi (%d cm)\n", ultrasonicDistance());
+      terminalLog("Ultrasonik: objek %d cm -> buka pintu", ultrasonicDistance());
     }
     doorStartCycle();
   }

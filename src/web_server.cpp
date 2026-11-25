@@ -115,7 +115,6 @@ void webBegin() {
   server.on("/api/flame", HTTP_GET, handleFlame);
   server.on("/api/door", HTTP_GET, handleDoor);
   server.begin();
-  Serial.println("[WEB] Web Server aktif di port 80.");
 }
 
 void webHandle() { server.handleClient(); }

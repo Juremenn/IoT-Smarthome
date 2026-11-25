@@ -1,6 +1,7 @@
 #include "sensors.h"
 
 #include "config.h"
+#include "terminal_ui.h"
 
 // ==========================================
 // SENSOR API
@@ -20,9 +21,6 @@ int activeStreak = 0;             // integrator anti-flicker api
 void flameBegin() {
   pinMode(cfg::PIN_FLAME, INPUT);
   flameValue = digitalRead(cfg::PIN_FLAME);
-  Serial.printf("[API] Inisialisasi pin D%d: Nilai raw awal = %d (Mode: %s)\n",
-                cfg::PIN_FLAME, flameValue,
-                flameHigh ? "Active-HIGH (1=Api)" : "Active-LOW (0=Api, 1=Aman)");
 }
 
 void flameUpdate(unsigned long now) {
@@ -62,10 +60,9 @@ void flameUpdate(unsigned long now) {
   }
 
   if (detected && !flameNow) {
-    Serial.printf("\n>>> [PERINGATAN API] Api terdeteksi di D34! (Raw: %d, Mode: %s)\n",
-                  flameValue, flameHigh ? "Active-HIGH" : "Active-LOW");
+    terminalLog("PERINGATAN API di D%d! Evakuasi aktif", cfg::PIN_FLAME);
   } else if (!detected && flameNow) {
-    Serial.println(">>> [STATUS API] Api padam / kondisi aman kembali.");
+    terminalLog("Api padam - kondisi aman kembali");
   }
   flameNow = detected;
 }
@@ -80,9 +77,7 @@ void flameToggleLogic() {
   quietTracking = false;
   activeStreak = 0;
   flameNow = false;
-  Serial.printf("[FLAME] Logika sensor api diubah: %s (Raw saat ini: %d)\n",
-                flameHigh ? "Active-HIGH (1=Api, 0=Aman)" : "Active-LOW (0=Api, 1=Aman)",
-                digitalRead(cfg::PIN_FLAME));
+  terminalLog("Logika api: %s", flameHigh ? "Active-HIGH" : "Active-LOW");
 }
 
 // ==========================================
@@ -171,7 +166,6 @@ const char *statusStr = "Menunggu sensor...";
 void dhtBegin() {
   pinMode(cfg::PIN_DHT, INPUT_PULLUP);
   dht.begin();
-  Serial.printf("[DHT11] Driver resmi Adafruit aktif di GPIO D%d\n", cfg::PIN_DHT);
 }
 
 void dhtUpdate(unsigned long now) {

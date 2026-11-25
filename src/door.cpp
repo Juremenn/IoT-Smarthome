@@ -4,6 +4,7 @@
 #include <ESP32Servo.h>
 
 #include "config.h"
+#include "terminal_ui.h"
 
 namespace {
 
@@ -88,8 +89,8 @@ void startMove(float target, bool urgent = false) {
   closeAt = 0;
   fastMove = urgent;
   phase = opening ? DoorPhase::Opening : DoorPhase::Closing;
-  Serial.printf(">>> [PINTU] %s (%lu ms%s)\n", opening ? "Membuka" : "Menutup", moveDuration,
-                urgent ? ", EVAKUASI" : "");
+  terminalLog("Pintu %s (%lu ms%s)", opening ? "membuka" : "menutup", moveDuration,
+              urgent ? ", EVAKUASI" : "");
 }
 
 bool isOpenOrOpening() { return phase == DoorPhase::Open || phase == DoorPhase::Opening; }
@@ -104,14 +105,12 @@ void doorBegin() {
   ESP32PWM::allocateTimer(3);
 
   servo1.setPeriodHertz(50);
-  int ch1 = servo1.attach(cfg::PIN_SERVO, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
+  servo1.attach(cfg::PIN_SERVO, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
 
   servo2.setPeriodHertz(50);
-  int ch2 = servo2.attach(cfg::PIN_SERVO_ALT, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
+  servo2.attach(cfg::PIN_SERVO_ALT, cfg::SERVO_MIN_US, cfg::SERVO_MAX_US);
 
-  Serial.printf("[SERVO] Inisialisasi: D%d (Ch %d, att=%s) | D%d (Ch %d, att=%s)\n",
-                cfg::PIN_SERVO, ch1, servo1.attached() ? "OK" : "GAGAL",
-                cfg::PIN_SERVO_ALT, ch2, servo2.attached() ? "OK" : "GAGAL");
+  terminalLog("Servo siap (D%d/%d)", cfg::PIN_SERVO, cfg::PIN_SERVO_ALT);
 
   writeServo(0.0f);
 }
@@ -133,13 +132,13 @@ void doorUpdate(unsigned long now) {
 
     if (t >= 1.0f) {
       leafAngle = moveTo;
-      Serial.printf("[PINTU] Gerak selesai, jeda update terlama %lu ms (ideal %lu)\n", maxGap, cfg::SERVO_TICK_MS);
       if (moveTo > HALF) {
         onFullyOpen(now);
+        terminalLog("Pintu terbuka penuh (gap max %lu ms)", maxGap);
       } else {
         phase = DoorPhase::Closed;
         autoCycle = false;
-        Serial.println(">>> [STATUS] Pintu tertutup rapat. Kembali standby.");
+        terminalLog("Pintu tertutup rapat (gap max %lu ms)", maxGap);
       }
     }
     return;
@@ -166,12 +165,12 @@ void doorOpenManual() {
   autoCycle = false;
   closeAt = 0;
   if (!isOpenOrOpening()) startMove(OPEN);
-  Serial.println("[PINTU] Dibuka MANUAL via Web");
+  terminalLog("Pintu dibuka manual via Web");
 }
 
 void doorCloseManual() {
   if (evacuation) {
-    Serial.println("[PINTU] Tutup ditolak: evakuasi api sedang aktif");
+    terminalLog("Tutup ditolak: evakuasi api aktif");
     return;
   }
   manualOpen = false;
@@ -179,7 +178,7 @@ void doorCloseManual() {
   closeAt = 0;
   manualCloseUntil = millis() + 3000;
   if (phase != DoorPhase::Closed && phase != DoorPhase::Closing) startMove(0.0f);
-  Serial.println("[PINTU] Ditutup MANUAL via Web");
+  terminalLog("Pintu ditutup manual via Web");
 }
 
 void doorSetEvacuation(bool active) {

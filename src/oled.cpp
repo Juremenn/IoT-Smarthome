@@ -9,6 +9,7 @@
 #include "app_network.h"
 #include "config.h"
 #include "sensors.h"
+#include "terminal_ui.h"
 
 namespace {
 
@@ -98,14 +99,13 @@ bool detect(bool force) {
 
   uint8_t target = (err3C == 0) ? 0x3C : (err3D == 0) ? 0x3D : 0;
   if (target != 0) {
-    Serial.printf("[OLED] Terdeteksi chip SSD1306 di alamat 0x%02X! Memulai inisialisasi...\n", target);
     if (display.begin(SSD1306_SWITCHCAPVCC, target)) {
       active = true;
       address = target;
       Wire.setClock(400000);
       display.clearDisplay();
       display.display();
-      Serial.printf("[OLED] SUKSES! Layar OLED aktif di 0x%02X\n", target);
+      terminalLog("OLED SSD1306 aktif di 0x%02X", target);
       return true;
     }
   } else if (err3C >= 4 || err3D >= 4) {

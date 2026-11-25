@@ -15,32 +15,22 @@
 #include "app_network.h"
 #include "oled.h"
 #include "sensors.h"
+#include "terminal_ui.h"
 #include "web_server.h"
 
-namespace {
-unsigned long lastSerialLog = 0;
-}
-
 void setup() {
-  Serial.begin(115200);
+  terminalBegin();
 
   esp_reset_reason_t reason = esp_reset_reason();
-  Serial.printf("\n[SISTEM] Status Boot / Reset: ");
   if (reason == ESP_RST_BROWNOUT) {
-    Serial.println("BROWNOUT DETECTED! Tegangan listrik drop (cek suplai power servo/sensor)!");
+    terminalLog("PERINGATAN: Brownout reset (cek suplai 5V)");
   } else if (reason == ESP_RST_PANIC) {
-    Serial.println("EXCEPTION / GURU MEDITATION PANIC");
+    terminalLog("PERINGATAN: Reboot karena panic");
   } else if (reason == ESP_RST_INT_WDT || reason == ESP_RST_TASK_WDT) {
-    Serial.println("WATCHDOG RESET (Loop terhalang/macet)");
-  } else if (reason == ESP_RST_SW) {
-    Serial.println("Software Reset");
-  } else if (reason == ESP_RST_POWERON) {
-    Serial.println("Power-On Normal");
-  } else {
-    Serial.printf("Kode: %d\n", (int)reason);
+    terminalLog("PERINGATAN: Reboot karena watchdog");
   }
 
-  // Inisialisasi ESP32 & Perangkat Keras (Servo D13, Api D34, DHT11 D27, Ultrasonik D4/D5, OLED)
+  // Inisialisasi ESP32 & Perangkat Keras (Servo D13, Api D34, DHT11 D27, Ultrasonik D25/D26, OLED)
   doorBegin();
   ultrasonicBegin();
   flameBegin();
@@ -51,16 +41,6 @@ void setup() {
   networkBegin();
   webBegin();
   oledShowSplash();
-
-  Serial.println("\n=============================================");
-  Serial.println("  SMART HOME RUMAH JOGLO - IOT SYSTEM");
-  Serial.printf("  Servo Pintu: GPIO D%d\n", cfg::PIN_SERVO);
-  Serial.printf("  Sensor Api 5-Way: GPIO D%d\n", cfg::PIN_FLAME);
-  Serial.printf("  Sensor Suhu (DHT11): GPIO D%d\n", cfg::PIN_DHT);
-  Serial.printf("  Sensor Ultrasonik: Trig=D%d, Echo=D%d\n", ultrasonicTrigPin(),
-                ultrasonicEchoPin());
-  Serial.printf("  Dashboard Web: http://%s\n", networkIp().c_str());
-  Serial.println("=============================================\n");
 }
 
 void loop() {
@@ -80,25 +60,8 @@ void loop() {
   if (doorIdle || flameDetected()) {
     oledUpdate(now);
   }
-
-  if (now - lastSerialLog >= 3000) {
-    lastSerialLog = now;
-    char distBuf[12];
-    if (ultrasonicDistance() > 0) {
-      snprintf(distBuf, sizeof(distBuf), "%3d cm", ultrasonicDistance());
-    } else {
-      snprintf(distBuf, sizeof(distBuf), " -- cm");
-    }
-    if (dhtIsValid()) {
-      Serial.printf("[STATUS] Pintu: %-10s | Jarak: %s | Suhu: %4.1f C (%2.0f%%) | Api: %-4s | OLED: %s\n",
-                    doorStatusText(), distBuf, dhtTemperature(), dhtHumidity(),
-                    flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
-    } else {
-      Serial.printf("[STATUS] Pintu: %-10s | Jarak: %s | Suhu: --.- C (--) | Api: %-4s | OLED: %s\n",
-                    doorStatusText(), distBuf,
-                    flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
-    }
-  }
+  // Perbarui tampilan TUI terminal secara in-place (tanpa scroll berulang, non-blocking)
+  terminalUpdate(now);
 
   delay(1);
 }
