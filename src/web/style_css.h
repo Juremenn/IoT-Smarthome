@@ -964,4 +964,23 @@ button:disabled {
   }
 }
 
+.header-status {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #57534E;
+  white-space: nowrap;
+}
+
+.header-status.is-offline {
+  color: #B91C1C;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conduit-pulse,
+  .ripple-indicator::after {
+    animation: none !important;
+  }
+}
+
 )rawliteral";

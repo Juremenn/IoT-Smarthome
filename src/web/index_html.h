@@ -31,6 +31,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <p class="brand-subtitle">Smart Home Yogyakarta Keraton</p>
       </div>
     </div>
+    <div class="header-status" id="oledStatusText" aria-live="polite">OLED: Memuat...</div>
   </header>
 
   <!-- View 1: Perangkat (5-Card Symmetrical Bento Grid) -->
@@ -127,7 +128,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         </div>
 
         <div class="status-sub" id="triggerDetailText" style="margin-top: 8px;">
-          Pemicu &le; 15 cm
+          Pemicu &le; 10 cm
         </div>
       </section>
 
@@ -233,7 +234,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
               <div class="flow-node-content">
                 <span class="flow-node-title">Sensor Ultrasonik</span>
-                <span class="flow-node-token mono-token">&le; 15 cm</span>
+                <span class="flow-node-token mono-token" id="flowUsThreshold">&le; 10 cm</span>
               </div>
             </div>
 
@@ -352,7 +353,71 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
               </div>
               <div class="flow-node-content">
                 <span class="flow-node-title">Evakuasi</span>
-                <span class="flow-node-desc">Pintu Buka Penuh</span>
+                <span class="flow-node-desc">Pintu Buka + Alarm + OLED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flow 3: Pemantauan Suhu & Kelembaban (DHT11) -->
+        <div class="flow-pathway">
+          <div class="flow-pathway-header">
+            <span class="flow-pathway-title">Pemantauan Suhu &amp; Kelembaban</span>
+          </div>
+          <div class="flow-nodes">
+            <div class="flow-node">
+              <div class="flow-node-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+                </svg>
+              </div>
+              <div class="flow-node-content">
+                <span class="flow-node-title">Sensor DHT11</span>
+                <span class="flow-node-token mono-token">D27</span>
+              </div>
+            </div>
+
+            <div class="flow-conduit flow-conduit-access" id="conduit3A" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
+              </svg>
+            </div>
+
+            <div class="flow-node flow-node-center">
+              <div class="flow-node-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <div class="flow-node-content">
+                <span class="flow-node-title">Validasi Data</span>
+                <span class="flow-node-token mono-token">&ge; 2.1s</span>
+              </div>
+            </div>
+
+            <div class="flow-conduit flow-conduit-access" id="conduit3B" aria-hidden="true">
+              <div class="conduit-track">
+                <div class="conduit-pulse"></div>
+              </div>
+              <svg class="conduit-arrow" viewBox="0 0 6 10">
+                <polyline points="1,1 5,5 1,9" />
+              </svg>
+            </div>
+
+            <div class="flow-node" id="flowNodeDhtOut">
+              <div class="flow-node-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <div class="flow-node-content">
+                <span class="flow-node-title">OLED &amp; Web</span>
+                <span class="flow-node-desc">Suhu &amp; Lembab</span>
               </div>
             </div>
           </div>
@@ -424,7 +489,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           </div>
         </div>
         <div class="spec-chips-footer">
-          <span class="spec-chip">Ambang <span class="mono-token">&le; 15 cm</span></span>
+          <span class="spec-chip">Ambang <span class="mono-token">&le; 10 cm</span></span>
           <span class="spec-chip">Sonar <span class="mono-token">40 kHz</span></span>
           <span class="spec-chip">Pulsa <span class="mono-token">10 &micro;s</span></span>
         </div>

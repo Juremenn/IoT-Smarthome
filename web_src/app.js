@@ -11,7 +11,7 @@
     USE_SIMULATOR: true,
     ESP32_BASE_URL: window.location.origin || "http://127.0.0.1:8080",
     POLL_INTERVAL_MS: 1000,
-    ULTRASONIC_TRIGGER_CM: 15
+    ULTRASONIC_TRIGGER_CM: 10
   };
 
   // State Management
@@ -56,7 +56,11 @@
       const data = await fetchEndpoint('/api/status');
       renderDashboard(data);
     } catch (err) {
-      // Offline fallback silent
+      const oledEl = $('oledStatusText');
+      if (oledEl) {
+        oledEl.textContent = 'Koneksi terputus \u00B7 Menunggu ESP32...';
+        oledEl.classList.add('is-offline');
+      }
     }
     setTimeout(pollStatus, CONFIG.POLL_INTERVAL_MS);
   }
@@ -65,7 +69,20 @@
   function renderDashboard(d) {
     lastData = d;
     const mode = d.doorTriggerMode;
-    const isEvacuation = d.doorTriggerMode === 2 && d.flame;
+    const isEvacuation = Boolean(d.flame);
+
+    const oledEl = $('oledStatusText');
+    if (oledEl) {
+      oledEl.classList.remove('is-offline');
+      if (d.oled) {
+        const addr = d.oledAddress && d.oledAddress !== 'none' ? ` (${d.oledAddress})` : '';
+        oledEl.textContent = d.flame
+          ? `OLED: Peringatan Api${addr}`
+          : `OLED: Aktif${addr}`;
+      } else {
+        oledEl.textContent = 'OLED: Offline';
+      }
+    }
 
     // 1. Pintu (Door Card)
     const doorBadge = $('doorIconBadge');
@@ -161,8 +178,12 @@
     const conduit1B = $('conduit1B');
     const flowNodeServo = $('flowNodeServo');
 
-    const threshold = CONFIG.ULTRASONIC_TRIGGER_CM;
+    const threshold = (typeof d.maxDistance === 'number' && d.maxDistance > 0)
+      ? d.maxDistance
+      : CONFIG.ULTRASONIC_TRIGGER_CM;
     const isTriggered = (mode === 3 && d.distance > 0 && d.distance <= threshold);
+    const flowUsThreshold = $('flowUsThreshold');
+    if (flowUsThreshold) flowUsThreshold.textContent = `\u2264 ${threshold} cm`;
 
     triggerMode.textContent = 'Ultrasonik';
     if (isTriggered) {
@@ -221,10 +242,13 @@
       distSub.textContent = 'Standby';
     }
 
-    // 5. Suhu Ruang & Kelembaban (DHT11 Card)
+    // 5. Suhu Ruang & Kelembaban (DHT11 Card & Flow 3 Animation)
     const tempNum = $('tempMetricNum');
     const tempFill = $('tempProgressFill');
     const humText = $('humText');
+    const conduit3A = $('conduit3A');
+    const conduit3B = $('conduit3B');
+    const flowNodeDhtOut = $('flowNodeDhtOut');
 
     if (d.tempValid && typeof d.temp === 'number') {
       tempNum.textContent = d.temp.toFixed(1);
@@ -232,10 +256,16 @@
       const percent = Math.min(100, Math.max(0, ((d.temp - 15) / 30) * 100));
       tempFill.style.width = `${percent}%`;
       humText.textContent = `Lembab ${d.humidity.toFixed(0)}%`;
+      if (conduit3A) conduit3A.classList.add('conduit-triggered');
+      if (conduit3B) conduit3B.classList.add('conduit-triggered');
+      if (flowNodeDhtOut) flowNodeDhtOut.classList.add('node-triggered');
     } else {
       tempNum.textContent = '--';
       tempFill.style.width = '0%';
       humText.textContent = d.dhtStatus || 'Menunggu sensor...';
+      if (conduit3A) conduit3A.classList.remove('conduit-triggered');
+      if (conduit3B) conduit3B.classList.remove('conduit-triggered');
+      if (flowNodeDhtOut) flowNodeDhtOut.classList.remove('node-triggered');
     }
   }
 

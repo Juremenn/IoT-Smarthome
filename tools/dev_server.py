@@ -49,7 +49,7 @@ class SmartHomeState:
         self.trigPin = 4
         self.echoPin = 5
         self.distance = 25
-        self.maxDistance = 15
+        self.maxDistance = 10
         self.rawEcho = 1450
         
         # DHT11
