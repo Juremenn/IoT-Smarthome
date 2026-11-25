@@ -48,7 +48,7 @@ html {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -56,7 +56,6 @@ body {
   line-height: 1.5;
   position: relative;
   overflow-x: hidden;
-  padding-bottom: 100px;
 }
 
 /* Main Container */
@@ -65,7 +64,7 @@ body {
   z-index: 2;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 20px 100px;
+  padding: 24px 20px calc(88px + env(safe-area-inset-bottom));
 }
 
 /* Top Header Bar */
@@ -133,6 +132,7 @@ body {
 }
 
 .card {
+  min-width: 0;
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
@@ -375,15 +375,15 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 12px;
   background-color: var(--bg-surface-muted);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   border-radius: var(--radius-btn);
-  transition: background-color var(--transition), border-color var(--transition);
+  transition: background-color var(--transition), border-color var(--transition), transform 0.1s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -399,22 +399,26 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 14px;
   background-color: var(--bg-surface-muted);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-badge);
+  border-radius: var(--radius-btn);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  transition: background-color var(--transition), border-color var(--transition);
-  margin-top: 10px;
+  transition: background-color var(--transition), border-color var(--transition), transform 0.1s ease;
+  margin-top: 8px;
 }
 
 .btn-pill:hover:not(:disabled) {
   background-color: #E5E7EB;
   border-color: var(--border-subtle-hover);
+}
+
+.btn-pill:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button:disabled {
@@ -461,16 +465,16 @@ button:disabled {
   background-color: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .nav-inner {
   max-width: 440px;
   margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 80px;
-  padding: 8px 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 6px 16px;
 }
 
 .nav-tab {
@@ -478,15 +482,20 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 80px;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 52px;
   justify-content: center;
+  border-radius: var(--radius-btn);
   color: var(--text-secondary);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  transition: color var(--transition);
+  letter-spacing: 0.03em;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.nav-tab:active {
+  background-color: var(--bg-surface-muted);
 }
 
 .nav-tab svg {
@@ -690,25 +699,24 @@ button:disabled {
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .flow-node-token {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-secondary);
-  white-space: nowrap;
 }
 
 .flow-node-desc {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.flow-node-danger .flow-node-desc {
   color: var(--status-danger);
-  white-space: nowrap;
 }
 
 /* Animated Pulse Packet Conduit (9Router Style) */
@@ -845,9 +853,10 @@ button:disabled {
 
 .pinout-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .pinout-title-wrap {
@@ -940,18 +949,82 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
-  .bento-grid {
-    grid-template-columns: 1fr;
-  }
-  .col-span-2, .col-span-1 {
-    grid-column: span 1;
-  }
   .app-container {
-    padding: 16px 14px 100px; /* Preserve generous 100px bottom padding on mobile */
+    padding: 16px 14px calc(88px + env(safe-area-inset-bottom));
   }
   .header-bar {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+  .brand-wrapper {
+    gap: 12px;
+  }
+  .brand-icon {
+    width: 48px;
+    height: 32px;
+  }
+  .brand-title {
+    font-size: clamp(20px, 5.5vw, 24px);
+  }
+  .bento-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .col-span-2, .col-span-1 {
+    grid-column: 1 / -1;
+  }
+  .card {
+    padding: 16px;
+  }
+  .card-metric {
+    grid-column: span 1;
+    padding: 14px;
+  }
+  .card-header {
+    margin-bottom: 12px;
+  }
+  .centerpiece {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .icon-badge {
+    width: 46px;
+    height: 46px;
+  }
+  .icon-badge svg {
+    width: 22px;
+    height: 22px;
+  }
+  .status-main {
+    font-size: 16px;
+  }
+  .metric-display {
+    margin: 6px 0 12px;
+  }
+  .metric-num {
+    font-size: clamp(28px, 8vw, 36px);
+  }
+  .metric-unit {
+    font-size: 14px;
+  }
+  .btn-pill {
+    width: 100%;
+  }
+  .hero-automation-card {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .hero-title {
+    font-size: 17px;
+  }
+  .flow-pathway {
+    padding: 12px;
+  }
+  .pinout-card {
+    padding: 14px;
   }
 }
 
@@ -960,7 +1033,7 @@ button:disabled {
   font-size: 12px;
   font-weight: 500;
   color: #57534E;
-  white-space: nowrap;
+  line-height: 1.4;
 }
 
 .header-status.is-offline {

@@ -94,7 +94,7 @@ int missedEcho = 0;
 long lastEchoUs = 0;
 unsigned long lastPing = 0;
 
-bool ping(int &dist, long &duration) {
+bool ping(int &dist, long &duration, unsigned long timeoutUs) {
   // Anti-freeze untuk modul HC-SR04: bebaskan Echo jika tertahan HIGH dari timeout sebelumnya
   if (digitalRead(cfg::PIN_ECHO) == HIGH) {
     pinMode(cfg::PIN_ECHO, OUTPUT);
@@ -110,9 +110,9 @@ bool ping(int &dist, long &duration) {
   delayMicroseconds(10);
   digitalWrite(cfg::PIN_TRIG, LOW);
 
-  duration = pulseIn(cfg::PIN_ECHO, HIGH, 15000);  // 15 ms timeout (~2.5 m) agar respons cepat
+  duration = pulseIn(cfg::PIN_ECHO, HIGH, timeoutUs);
   // Filter glitch listrik < 100 µs (~1.7 cm, di bawah batas fisik HC-SR04 2 cm)
-  if (duration >= 100 && duration <= 15000) {
+  if (duration >= 100 && duration <= (long)timeoutUs) {
     dist = (int)(duration * 0.034f / 2.0f);
     if (dist < 1) dist = 1;
     return true;
@@ -128,13 +128,15 @@ void ultrasonicBegin() {
   pinMode(cfg::PIN_ECHO, INPUT_PULLDOWN);
 }
 
-void ultrasonicUpdate(unsigned long now, bool enabled) {
+void ultrasonicUpdate(unsigned long now, bool enabled, bool shortTimeout) {
   if (!enabled) return;
   if (now - lastPing < cfg::ULTRASONIC_PING_MS) return;
   lastPing = now;
 
+  // Saat pintu sedang menutup, pakai timeout 6 ms (~100 cm) agar tick servo 20 ms tidak tersendat
+  unsigned long timeoutUs = shortTimeout ? 6000UL : 15000UL;
   int d = 0;
-  if (ping(d, lastEchoUs) && d > 0 && d <= 250) {
+  if (ping(d, lastEchoUs, timeoutUs) && d > 0 && d <= 250) {
     distanceCm = d;
     missedEcho = 0;
   } else if (++missedEcho >= 2) {

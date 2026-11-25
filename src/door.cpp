@@ -117,7 +117,10 @@ void doorBegin() {
 }
 
 void doorUpdate(unsigned long now) {
+  // Selalu gunakan millis() segar agar tidak pernah < moveStart bila startMove() dipanggil setelah pulseIn()
+  now = millis();
   if (phase == DoorPhase::Opening || phase == DoorPhase::Closing) {
+    if ((long)(now - moveStart) < 0) return;
     if (lastTick != 0 && now - lastTick < cfg::SERVO_TICK_MS) return;
     if (lastTick != 0 && now - lastTick > maxGap) maxGap = now - lastTick;
     lastTick = now;

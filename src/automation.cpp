@@ -22,10 +22,10 @@ void setTriggerMode(int m) {
 
 void automationUpdate(unsigned long now) {
   flameUpdate(now);
-  // Tunda pulseIn ultrasonik (hingga 15ms) hanya saat pintu sedang membuka agar gerak servo bebas jitter;
-  // saat pintu menutup/standby/terbuka, ultrasonik tetap aktif penuh.
-  bool allowUltrasonic = (mode == MODE_ULTRASONIC) && (doorPhase() != DoorPhase::Opening);
-  ultrasonicUpdate(now, allowUltrasonic);
+  // Tunda pulseIn ultrasonik hanya saat pintu sedang membuka; saat menutup pakai timeout pendek 6ms.
+  DoorPhase p = doorPhase();
+  bool allowUltrasonic = (mode == MODE_ULTRASONIC) && (p != DoorPhase::Opening);
+  ultrasonicUpdate(now, allowUltrasonic, p == DoorPhase::Closing);
 
   // Evakuasi api (Prioritas Darurat Global): pintu dibuka penuh dan ditahan selama api terdeteksi.
   doorSetEvacuation(flameDetected());

@@ -83,13 +83,19 @@ void loop() {
 
   if (now - lastSerialLog >= 3000) {
     lastSerialLog = now;
+    char distBuf[12];
+    if (ultrasonicDistance() > 0) {
+      snprintf(distBuf, sizeof(distBuf), "%3d cm", ultrasonicDistance());
+    } else {
+      snprintf(distBuf, sizeof(distBuf), " -- cm");
+    }
     if (dhtIsValid()) {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: %.1f C (%.0f%%) | Pemicu: %d | Jarak: %d cm | Flame: %s | OLED: %s\n",
-                    doorStatusText(), dhtTemperature(), dhtHumidity(), triggerMode(), ultrasonicDistance(),
+      Serial.printf("[STATUS] Pintu: %-10s | Jarak: %s | Suhu: %4.1f C (%2.0f%%) | Api: %-4s | OLED: %s\n",
+                    doorStatusText(), distBuf, dhtTemperature(), dhtHumidity(),
                     flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     } else {
-      Serial.printf("[STATUS] Pintu: %s | Suhu: [%s] | Pemicu: %d | Jarak: %d cm | Flame: %s | OLED: %s\n",
-                    doorStatusText(), dhtStatusMessage(), triggerMode(), ultrasonicDistance(),
+      Serial.printf("[STATUS] Pintu: %-10s | Jarak: %s | Suhu: --.- C (--) | Api: %-4s | OLED: %s\n",
+                    doorStatusText(), distBuf,
                     flameDetected() ? "API!" : "Aman", oledIsActive() ? "Aktif" : "Offline");
     }
   }

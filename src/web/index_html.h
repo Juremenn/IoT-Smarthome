@@ -133,7 +133,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </section>
 
       <!-- Row 2, Card 4: Jarak -->
-      <section class="card col-span-1" id="cardDist" aria-labelledby="distLabel">
+      <section class="card col-span-1 card-metric" id="cardDist" aria-labelledby="distLabel">
         <div class="card-header">
           <span class="card-label" id="distLabel">Jarak Halangan</span>
           <span class="card-sub-icon" aria-hidden="true">
@@ -160,7 +160,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </section>
 
       <!-- Row 2, Card 5: Suhu Ruang -->
-      <section class="card col-span-1" id="cardTemp" aria-labelledby="tempLabel">
+      <section class="card col-span-1 card-metric" id="cardTemp" aria-labelledby="tempLabel">
         <div class="card-header">
           <span class="card-label" id="tempLabel">Suhu Ruang</span>
           <span class="card-sub-icon" aria-hidden="true">
@@ -521,9 +521,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
 <!-- Bottom Navigation Bar -->
 <nav class="bottom-nav" aria-label="Menu Navigasi">
-  <div class="nav-inner">
-    <button type="button" class="nav-tab active" id="tab-perangkat" data-target="view-perangkat">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <div class="nav-inner" role="tablist">
+    <button type="button" class="nav-tab active" id="tab-perangkat" role="tab" aria-selected="true" aria-controls="view-perangkat" data-target="view-perangkat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="1.5"/>
         <rect x="14" y="3" width="7" height="7" rx="1.5"/>
         <rect x="3" y="14" width="7" height="7" rx="1.5"/>
@@ -532,8 +532,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <span>Perangkat</span>
     </button>
 
-    <button type="button" class="nav-tab" id="tab-info" data-target="view-info">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <button type="button" class="nav-tab" id="tab-info" role="tab" aria-selected="false" aria-controls="view-info" data-target="view-info">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10"/>
         <line x1="12" y1="16" x2="12" y2="12"/>
         <line x1="12" y1="8" x2="12.01" y2="8"/>

@@ -11,7 +11,7 @@ void flameToggleLogic();
 
 // ---- Ultrasonik HC-SR04 (Trig D25, Echo D26) ----
 void ultrasonicBegin();
-void ultrasonicUpdate(unsigned long now, bool enabled);
+void ultrasonicUpdate(unsigned long now, bool enabled, bool shortTimeout = false);
 int ultrasonicDistance();  // 0 = tidak ada objek / tidak ada echo
 long ultrasonicLastEcho();
 int ultrasonicTrigPin();
