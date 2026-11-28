@@ -13,12 +13,97 @@
 </head>
 <body>
 
+<!-- Welcome Popup: Tema Jawa Tengah + Voice Over -->
+<div class="welcome-overlay" id="welcomeOverlay" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+  <div class="welcome-card">
+    <svg class="welcome-card-kawung" viewBox="0 0 120 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <pattern id="kawungPat" width="36" height="36" patternUnits="userSpaceOnUse">
+          <ellipse cx="18" cy="9" rx="5" ry="8" fill="none" stroke="currentColor" stroke-width="1"/>
+          <ellipse cx="18" cy="27" rx="5" ry="8" fill="none" stroke="currentColor" stroke-width="1"/>
+          <ellipse cx="9" cy="18" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <ellipse cx="27" cy="18" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <circle cx="18" cy="18" r="2" fill="currentColor"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#kawungPat)"/>
+    </svg>
+
+    <button type="button" class="welcome-close-btn" id="btnWelcomeClose" aria-label="Tutup sambutan">&times;</button>
+
+    <div class="welcome-ornament" aria-hidden="true">
+      <span class="ornament-line"></span>
+      <svg class="ornament-joglo" viewBox="0 0 48 22" fill="none">
+        <path d="M24 2 L32 10 L45 18 H3 L16 10 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="currentColor" fill-opacity="0.12"/>
+        <path d="M16 10 H32 M10 18 V21 M38 18 V21" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      <span class="ornament-line"></span>
+    </div>
+
+    <div class="welcome-character-slot">
+      <div class="welcome-halo" aria-hidden="true"></div>
+      <img class="welcome-char-img" src="/guide-female.png" alt="Kirana Dewi, pemandu Rumah Joglo mengenakan kebaya kutubaru dan batik Jawa Tengah">
+    </div>
+
+    <div class="welcome-copy">
+      <p class="welcome-eyebrow">Jawa Tengah &middot; Rumah Joglo</p>
+      <h2 class="welcome-title" id="welcomeTitle">Sugeng Rawuh</h2>
+      <p class="welcome-subtitle">Selamat datang di Smart Home Miniatur Rumah Joglo. Mari saya pandu mengenal fitur-fitur pintarnya.</p>
+    </div>
+
+    <button type="button" class="btn-voice-pill" id="btnWelcomeVoice" aria-label="Putar atau hentikan suara sambutan">
+      <svg class="voice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+      </svg>
+      <span id="welcomeVoiceLabel">Putar Suara Sambutan</span>
+    </button>
+
+    <div class="welcome-actions">
+      <button type="button" class="btn-primary welcome-enter" id="btnStartTour">
+        Mulai Tur Pemandu
+      </button>
+      <button type="button" class="btn-secondary welcome-skip" id="btnWelcomeEnter">
+        Langsung Masuk
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="bg-joglo-accent" aria-hidden="true">
+  <svg class="bg-parang" viewBox="0 0 160 160" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <pattern id="parangPat" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)">
+        <path d="M0 16 Q16 4 32 16 T64 16" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M0 48 Q16 36 32 48 T64 48" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <path d="M8 32 L16 26 L24 32 L16 38 Z M40 32 L48 26 L56 32 L48 38 Z" fill="none" stroke="currentColor" stroke-width="0.9"/>
+        <circle cx="16" cy="32" r="1.4" fill="currentColor"/>
+        <circle cx="48" cy="32" r="1.4" fill="currentColor"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#parangPat)"/>
+  </svg>
+  <svg class="bg-gunungan-mark" viewBox="0 0 160 220" fill="none">
+    <path d="M80 12 C100 50 142 96 144 156 C145 188 122 206 80 212 C38 206 15 188 16 156 C18 96 60 50 80 12 Z" stroke="currentColor" stroke-width="1.6" fill="currentColor" fill-opacity="0.05"/>
+    <path d="M80 38 C94 68 122 104 123 152 C123 176 106 190 80 195 C54 190 37 176 37 152 C38 104 66 68 80 38 Z" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4"/>
+    <path d="M80 56 V195 M56 138 Q80 116 104 138 M48 166 Q80 146 112 166" stroke="currentColor" stroke-width="1.1"/>
+  </svg>
+</div>
+
 <div class="app-shell">
   <header class="app-header">
     <div class="brand">
       <img class="brand-logo" src="/joglo.png" width="44" height="25" alt="" fetchpriority="high">
       <h1 class="brand-title">Rumah Joglo</h1>
     </div>
+    <button type="button" class="btn-welcome-replay" id="btnReplayWelcome" title="Buka Pemandu Tur Rumah Joglo" aria-label="Buka Pemandu Tur Rumah Joglo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+      </svg>
+      <span>Pemandu</span>
+    </button>
   </header>
 
   <div class="conn-banner" id="connBanner" role="status" aria-live="polite">
@@ -173,6 +258,30 @@
   </main>
 </div>
 
+<!-- Interactive Tour Guide Companion (Pemandu Rumah Joglo) -->
+<aside class="tour-dock" id="tourDock" role="dialog" aria-live="polite" aria-labelledby="tourTitle" hidden>
+  <div class="tour-card">
+    <div class="tour-avatar-wrap">
+      <img class="tour-avatar" id="tourAvatarImg" src="/guide-female.png" alt="Pemandu Rumah Joglo">
+    </div>
+    <div class="tour-body">
+      <div class="tour-meta">
+        <span class="tour-speaker" id="tourSpeaker">Kirana Dewi &middot; Pemandu</span>
+        <div class="tour-meta-actions">
+          <span class="tour-step-badge" id="tourStepBadge">1 / 6</span>
+          <button type="button" class="tour-close-btn" id="btnTourClose" aria-label="Tutup pemandu">&times;</button>
+        </div>
+      </div>
+      <h3 class="tour-title" id="tourTitle">Sugeng Rawuh!</h3>
+      <p class="tour-text" id="tourText">Mari saya tunjukkan fitur-fitur pintar di Rumah Joglo ini.</p>
+      <div class="tour-nav">
+        <button type="button" class="btn-secondary tour-btn" id="btnTourPrev">Kembali</button>
+        <button type="button" class="btn-primary tour-btn" id="btnTourNext">Lanjut</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
 <nav class="bottom-nav" aria-label="Navigasi utama">
   <div class="nav-inner" role="tablist">
     <button type="button" class="nav-tab active" id="tab-perangkat" role="tab" aria-selected="true" aria-controls="view-perangkat" data-target="view-perangkat">
@@ -203,6 +312,7 @@
   </div>
 </nav>
 
+<audio id="audioWelcome" src="/welcome.mp3" preload="auto"></audio>
 <audio id="audioAlarm" src="/alarm.mp3" preload="auto" loop></audio>
 <script src="/app.js" defer></script>
 </body>

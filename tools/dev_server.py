@@ -177,8 +177,8 @@ class MockServerHandler(BaseHTTPRequestHandler):
             self.wfile.write(content.encode("utf-8"))
             return
 
-        elif path == "/alarm.mp3":
-            mp3_file = WEB_SRC_DIR / "alarm.mp3"
+        elif path in ("/alarm.mp3", "/welcome.mp3"):
+            mp3_file = WEB_SRC_DIR / path.lstrip("/")
             if mp3_file.exists():
                 data = mp3_file.read_bytes()
             else:
@@ -191,8 +191,8 @@ class MockServerHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
 
-        elif path == "/joglo.png":
-            img_file = WEB_SRC_DIR / "joglo.png"
+        elif path in ("/joglo.png", "/guide-female.png", "/guide-male.png"):
+            img_file = WEB_SRC_DIR / path.lstrip("/")
             if img_file.exists():
                 data = img_file.read_bytes()
             else:

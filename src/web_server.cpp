@@ -129,9 +129,17 @@ void webBegin() {
     server.sendHeader("Cache-Control", "public, max-age=86400");
     server.send_P(200, "audio/mpeg", (PGM_P)ALARM_MP3, ALARM_MP3_LEN);
   });
+  server.on("/welcome.mp3", HTTP_GET, [] {
+    server.sendHeader("Cache-Control", "public, max-age=86400");
+    server.send_P(200, "audio/mpeg", (PGM_P)WELCOME_MP3, WELCOME_MP3_LEN);
+  });
   server.on("/joglo.png", HTTP_GET, [] {
     server.sendHeader("Cache-Control", "public, max-age=86400");
     server.send_P(200, "image/png", (PGM_P)JOGLO_PNG, JOGLO_PNG_LEN);
+  });
+  server.on("/guide-female.png", HTTP_GET, [] {
+    server.sendHeader("Cache-Control", "public, max-age=86400");
+    server.send_P(200, "image/png", (PGM_P)GUIDE_FEMALE_PNG, GUIDE_FEMALE_PNG_LEN);
   });
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/flame", HTTP_GET, handleFlame);

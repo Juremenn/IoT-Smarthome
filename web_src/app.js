@@ -20,6 +20,14 @@
 
   const $ = id => document.getElementById(id);
 
+  function hapticTap(ms = 12) {
+    if (navigator && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(ms);
+      } catch (_e) {}
+    }
+  }
+
   const SVG_DOOR_CLOSED = `
     <path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/>
     <path d="M2 20h20"/>
@@ -164,6 +172,8 @@
     const flameBtn = $('btnFlameToggleLogic');
 
     if (d.flame) {
+      dismissWelcome(true);
+      endTour();
       cardFlame.classList.add('is-danger');
       flameBadge.className = 'icon-box icon-danger';
       flameStatus.textContent = 'Bahaya api!';
@@ -271,9 +281,10 @@
     }
   }
 
-  // Door Controls (Zero-Delay Optimistic UI)
+  // Door Controls (Zero-Delay Optimistic UI + Haptic Tap)
   $('btnDoorAuto').addEventListener('click', () => {
     if (lastData && lastData.flame) return;
+    hapticTap();
     sendCommand(
       '/api/door?action=auto',
       () => applyDoorVisual('AUTO_CYCLE', false),
@@ -283,6 +294,7 @@
 
   $('btnDoorOpen').addEventListener('click', () => {
     if (lastData && lastData.flame) return;
+    hapticTap();
     sendCommand(
       '/api/door?action=open',
       () => applyDoorVisual('TERBUKA', false),
@@ -292,6 +304,7 @@
 
   $('btnDoorClose').addEventListener('click', () => {
     if (lastData && lastData.flame) return;
+    hapticTap();
     sendCommand(
       '/api/door?action=close',
       () => applyDoorVisual('TERTUTUP', false),
@@ -301,6 +314,7 @@
 
   // Flame Logic Toggle (Optimistic UI)
   $('btnFlameToggleLogic').addEventListener('click', () => {
+    hapticTap();
     sendCommand(
       '/api/flame?toggle_logic=1',
       () => {
@@ -376,6 +390,342 @@
       audio.pause();
       audio.currentTime = 0;
     }
+  }
+
+  // Welcome Popup, Voice Over Jawa Tengah & Interactive Tour Guide (Kirana Dewi)
+  const welcomeOverlay = $('welcomeOverlay');
+  const btnWelcomeClose = $('btnWelcomeClose');
+  const btnWelcomeVoice = $('btnWelcomeVoice');
+  const welcomeVoiceLabel = $('welcomeVoiceLabel');
+  const btnStartTour = $('btnStartTour');
+  const btnWelcomeEnter = $('btnWelcomeEnter');
+  const btnReplayWelcome = $('btnReplayWelcome');
+  const audioWelcome = $('audioWelcome');
+
+  const tourDock = $('tourDock');
+  const tourStepBadge = $('tourStepBadge');
+  const tourTitle = $('tourTitle');
+  const tourText = $('tourText');
+  const btnTourPrev = $('btnTourPrev');
+  const btnTourNext = $('btnTourNext');
+  const btnTourClose = $('btnTourClose');
+
+  const WELCOME_SPEECH_TEXT = 'Halo, Sugeng Rawuh! Kenalin, aku Kirana Dewi, pemandu Rumah Joglo pintar ini. Monggo, mari aku pandu mengenal fitur-fiturnya.';
+  let welcomeHideTimer = null;
+  let isVoicePlaying = false;
+  let tourIndex = -1;
+  let activeSpotlightEl = null;
+
+  const TOUR_STEPS = [
+    {
+      tab: 'tab-perangkat',
+      target: null,
+      title: 'Sugeng Rawuh di Rumah Joglo!',
+      text: 'Halo, saya Kirana Dewi! Mari saya pandu mengenal fitur kendali pintar miniatur Rumah Joglo berbasis ESP32 ini.'
+    },
+    {
+      tab: 'tab-perangkat',
+      target: 'cardDoor',
+      title: 'Kontrol Pintu Servo Halus',
+      text: 'Atur pintu Joglo secara manual: pilih "Buka 2 detik" untuk siklus otomatis, "Buka terus", atau "Tutup" dengan gerak servo lembut.'
+    },
+    {
+      tab: 'tab-perangkat',
+      target: 'cardFlame',
+      title: 'Sensor Api & Evakuasi Darurat',
+      text: 'Jika api terdeteksi (15 ms), pintu otomatis terbuka penuh untuk evakuasi dan alarm berbunyi. Tombol kanan untuk ubah logika sensor.'
+    },
+    {
+      tab: 'tab-perangkat',
+      target: 'cardDist',
+      title: 'Sensor Jarak Ultrasonik',
+      text: 'Memantau jarak objek di depan pintu. Saat jarak 10 cm atau kurang, pintu otomatis membuka dan menahan 2 detik.'
+    },
+    {
+      tab: 'tab-perangkat',
+      target: 'cardTemp',
+      title: 'Pemantauan Suhu & Kelembaban',
+      text: 'Menampilkan suhu ruangan (°C) dan tingkat kelembaban (%) secara langsung dari sensor DHT11 di dalam miniatur.'
+    },
+    {
+      tab: 'tab-info',
+      target: 'view-info',
+      title: 'Informasi Otomasi & Pinout ESP32',
+      text: 'Di tab Pinout ini kamu bisa melihat ringkasan aturan otomasi serta daftar pin GPIO ESP32 dan nama Wi-Fi AP. Selamat mencoba!'
+    }
+  ];
+
+  function setVoiceUi(playing, customLabel) {
+    isVoicePlaying = Boolean(playing);
+    if (!btnWelcomeVoice || !welcomeVoiceLabel) return;
+    btnWelcomeVoice.classList.toggle('is-speaking', isVoicePlaying);
+    if (customLabel) {
+      welcomeVoiceLabel.textContent = customLabel;
+    } else {
+      welcomeVoiceLabel.textContent = isVoicePlaying ? 'Memutar Sambutan...' : 'Putar Suara Sambutan';
+    }
+  }
+
+  function stopWelcomeVoice() {
+    if (audioWelcome) {
+      audioWelcome.pause();
+      audioWelcome.currentTime = 0;
+    }
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_e) {}
+    }
+    setVoiceUi(false);
+  }
+
+  function speakFallback() {
+    if (!('speechSynthesis' in window)) {
+      setVoiceUi(false);
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(WELCOME_SPEECH_TEXT);
+      utter.lang = 'id-ID';
+      utter.rate = 0.94;
+      utter.pitch = 1.08;
+      const voices = window.speechSynthesis.getVoices();
+      const idFemale = voices.find(v => /jv|id/i.test(v.lang) && /female|gadis|siti|damayanti|google/i.test(v.name))
+        || voices.find(v => /id/i.test(v.lang));
+      if (idFemale) utter.voice = idFemale;
+      utter.onstart = () => setVoiceUi(true);
+      utter.onend = () => setVoiceUi(false);
+      utter.onerror = () => setVoiceUi(false);
+      window.speechSynthesis.speak(utter);
+    } catch (_e) {
+      setVoiceUi(false);
+    }
+  }
+
+  function playWelcomeVoice(isUserGesture) {
+    if (lastData && lastData.flame) return;
+    stopWelcomeVoice();
+
+    if (audioWelcome) {
+      audioWelcome.currentTime = 0;
+      const p = audioWelcome.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          setVoiceUi(true);
+        }).catch(() => {
+          if (isUserGesture) {
+            speakFallback();
+          } else {
+            setVoiceUi(false, 'Ketuk untuk Suara Sambutan');
+          }
+        });
+      }
+    } else if (isUserGesture) {
+      speakFallback();
+    }
+  }
+
+  if (audioWelcome) {
+    audioWelcome.addEventListener('ended', () => setVoiceUi(false));
+    audioWelcome.addEventListener('error', () => setVoiceUi(false));
+  }
+
+  function clearSpotlight() {
+    if (activeSpotlightEl) {
+      activeSpotlightEl.classList.remove('tour-spotlight');
+      activeSpotlightEl = null;
+    }
+  }
+
+  function renderTourStep(index) {
+    if (!tourDock || index < 0 || index >= TOUR_STEPS.length) return;
+    tourIndex = index;
+    const step = TOUR_STEPS[index];
+
+    if (step.tab) {
+      const targetTab = $(step.tab);
+      if (targetTab && !targetTab.classList.contains('active')) {
+        activateTab(targetTab, false);
+      }
+    }
+
+    clearSpotlight();
+    if (step.target) {
+      const el = $(step.target);
+      if (el) {
+        el.classList.add('tour-spotlight');
+        activeSpotlightEl = el;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    tourStepBadge.textContent = `${index + 1} / ${TOUR_STEPS.length}`;
+    tourTitle.textContent = step.title;
+    tourText.textContent = step.text;
+    btnTourPrev.hidden = index === 0;
+    btnTourNext.textContent = index === TOUR_STEPS.length - 1 ? 'Selesai' : 'Lanjut';
+    tourDock.hidden = false;
+    document.body.classList.add('tour-active');
+  }
+
+  function startTour() {
+    if (lastData && lastData.flame) return;
+    hapticTap();
+    dismissWelcome(false);
+    renderTourStep(0);
+  }
+
+  function endTour() {
+    clearSpotlight();
+    tourIndex = -1;
+    document.body.classList.remove('tour-active');
+    if (tourDock) tourDock.hidden = true;
+  }
+
+  function dismissWelcome(immediate) {
+    stopWelcomeVoice();
+    if (!welcomeOverlay || welcomeOverlay.classList.contains('is-hidden')) return;
+    if (welcomeHideTimer) {
+      clearTimeout(welcomeHideTimer);
+      welcomeHideTimer = null;
+    }
+
+    if (immediate) {
+      welcomeOverlay.classList.add('is-hidden');
+      welcomeOverlay.classList.remove('is-leaving');
+      return;
+    }
+
+    welcomeOverlay.classList.add('is-leaving');
+    welcomeHideTimer = setTimeout(() => {
+      welcomeOverlay.classList.add('is-hidden');
+      welcomeHideTimer = null;
+    }, 360);
+  }
+
+  function showWelcome() {
+    if (!welcomeOverlay) return;
+    endTour();
+    if (welcomeHideTimer) {
+      clearTimeout(welcomeHideTimer);
+      welcomeHideTimer = null;
+    }
+    welcomeOverlay.classList.remove('is-hidden', 'is-leaving');
+    playWelcomeVoice(false);
+  }
+
+  if (welcomeOverlay) {
+    showWelcome();
+
+    if (btnWelcomeVoice) {
+      btnWelcomeVoice.addEventListener('click', () => {
+        unlockAudio();
+        if (isVoicePlaying) {
+          stopWelcomeVoice();
+        } else {
+          playWelcomeVoice(true);
+        }
+      });
+    }
+
+    if (btnStartTour) {
+      btnStartTour.addEventListener('click', () => {
+        unlockAudio();
+        startTour();
+      });
+    }
+
+    if (btnWelcomeEnter) {
+      btnWelcomeEnter.addEventListener('click', () => {
+        unlockAudio();
+        dismissWelcome(false);
+      });
+    }
+
+    if (btnWelcomeClose) {
+      btnWelcomeClose.addEventListener('click', () => {
+        unlockAudio();
+        dismissWelcome(false);
+      });
+    }
+
+    if (btnReplayWelcome) {
+      btnReplayWelcome.addEventListener('click', () => {
+        unlockAudio();
+        if (tourDock && !tourDock.hidden) {
+          endTour();
+        } else {
+          startTour();
+        }
+      });
+    }
+
+    welcomeOverlay.addEventListener('click', e => {
+      if (e.target === welcomeOverlay) {
+        unlockAudio();
+        dismissWelcome(false);
+      }
+    });
+
+    if (btnTourPrev) {
+      btnTourPrev.addEventListener('click', () => {
+        hapticTap();
+        if (tourIndex > 0) renderTourStep(tourIndex - 1);
+      });
+    }
+
+    if (btnTourNext) {
+      btnTourNext.addEventListener('click', () => {
+        hapticTap();
+        if (tourIndex < TOUR_STEPS.length - 1) {
+          renderTourStep(tourIndex + 1);
+        } else {
+          endTour();
+          const firstTab = $('tab-perangkat');
+          if (firstTab) activateTab(firstTab, false);
+        }
+      });
+    }
+
+    if (btnTourClose) {
+      btnTourClose.addEventListener('click', () => {
+        hapticTap();
+        endTour();
+      });
+    }
+
+    // Touch swipe gesture on tour card for mobile navigation
+    if (tourDock) {
+      let touchStartX = 0;
+      tourDock.addEventListener('touchstart', e => {
+        if (e.touches && e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+        }
+      }, { passive: true });
+      tourDock.addEventListener('touchend', e => {
+        if (!e.changedTouches || e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) < 48) return;
+        hapticTap();
+        if (dx < 0) {
+          if (tourIndex < TOUR_STEPS.length - 1) renderTourStep(tourIndex + 1);
+          else endTour();
+        } else if (tourIndex > 0) {
+          renderTourStep(tourIndex - 1);
+        }
+      }, { passive: true });
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (!welcomeOverlay.classList.contains('is-hidden')) {
+          dismissWelcome(false);
+        } else if (tourDock && !tourDock.hidden) {
+          endTour();
+        }
+      }
+    });
   }
 
   // Start Polling

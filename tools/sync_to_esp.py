@@ -91,15 +91,25 @@ def sync():
         "extern const size_t APP_JS_GZ_LEN;\n\n"
         "extern const uint8_t JOGLO_PNG[] PROGMEM;\n"
         "extern const size_t JOGLO_PNG_LEN;\n\n"
+        "extern const uint8_t GUIDE_FEMALE_PNG[] PROGMEM;\n"
+        "extern const size_t GUIDE_FEMALE_PNG_LEN;\n\n"
+        "extern const uint8_t WELCOME_MP3[] PROGMEM;\n"
+        "extern const size_t WELCOME_MP3_LEN;\n\n"
         "extern const uint8_t ALARM_MP3[] PROGMEM;\n"
         "extern const size_t ALARM_MP3_LEN;\n"
     )
 
     static_blocks = [
         '#include "web_assets.h"\n\n'
-        "// Aset biner statis (joglo.png & alarm.mp3) dipisah agar di-compile sekali dan di-cache.\n"
+        "// Aset biner statis (gambar & audio) dipisah agar di-compile sekali dan di-cache.\n"
     ]
-    for src_path, sym in [("web_src/joglo.png", "JOGLO_PNG"), ("web_src/alarm.mp3", "ALARM_MP3")]:
+    static_specs = [
+        ("web_src/joglo.png", "JOGLO_PNG"),
+        ("web_src/guide-female.png", "GUIDE_FEMALE_PNG"),
+        ("web_src/welcome.mp3", "WELCOME_MP3"),
+        ("web_src/alarm.mp3", "ALARM_MP3"),
+    ]
+    for src_path, sym in static_specs:
         p = Path(src_path)
         data = p.read_bytes() if p.exists() else b""
         static_blocks.append(format_byte_array(sym, data))
